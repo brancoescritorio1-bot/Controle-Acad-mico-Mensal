@@ -1,0 +1,5 @@
+{
+  "name": "Controle Acadêmico Mensal",
+  "description": "Aplicativo para controle de matérias, presenças, atividades e notas mensais da faculdade.",
+  "requestFramePermissions": []
+}
