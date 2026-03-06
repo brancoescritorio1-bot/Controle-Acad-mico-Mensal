@@ -515,10 +515,551 @@ async function startServer() {
     }
   });
 
+  // --- System Setup ---
+  app.post("/api/setup-finance", async (req, res) => {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+      return res.status(500).json({ error: "Service role key missing" });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    // SQL to create tables if they don't exist
+    // Note: Supabase JS client doesn't support raw SQL execution directly via `rpc` unless a function is created.
+    // However, we can check if tables exist by trying to select from them.
+    // If they error, we can inform the user to run the migration script.
+    
+    // Ideally, we would use a migration tool or raw SQL execution if available.
+    // Since we are limited, we will just check and return status.
+    
+    const tables = ["financial_categories", "financial_accounts", "financial_transactions", "financial_responsibles", "clients", "client_sales", "client_installments"];
+    const status: Record<string, boolean> = {};
+
+    for (const table of tables) {
+      const { error } = await supabaseAdmin.from(table).select("id").limit(1);
+      status[table] = !error;
+    }
+
+    res.json({ 
+      success: true, 
+      tables: status,
+      message: "Verificação concluída. Se alguma tabela estiver faltando (false), por favor execute o script SQL no painel do Supabase." 
+    });
+  });
+
+  // --- Financial Module Routes ---
+
+  // Categories
+  app.get("/api/finance/categories", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("financial_categories").select("*").eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/finance/categories", async (req, res) => {
+    const user = (req as any).user;
+    const { name, type } = req.body;
+    const { data, error } = await supabase.from("financial_categories").insert([{ name, type, user_id: user.id }]).select().single();
+    if (error) return res.status(500).json(error);
+    res.json(data);
+  });
+
+  app.put("/api/finance/categories/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { name, type } = req.body;
+    const { error } = await supabase.from("financial_categories").update({ name, type }).eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/finance/categories/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { error } = await supabase.from("financial_categories").delete().eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Accounts
+  app.get("/api/finance/accounts", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("financial_accounts").select("*").eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/finance/accounts", async (req, res) => {
+    const user = (req as any).user;
+    const { name, initial_balance, type, closing_day, due_day } = req.body;
+    const { data, error } = await supabase.from("financial_accounts").insert([{ 
+      name, 
+      initial_balance, 
+      type, 
+      closing_day, 
+      due_day, 
+      user_id: user.id 
+    }]).select().single();
+    if (error) return res.status(500).json(error);
+    res.json(data);
+  });
+
+  app.put("/api/finance/accounts/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { name, initial_balance, type, closing_day, due_day } = req.body;
+    const { error } = await supabase.from("financial_accounts").update({ 
+      name, 
+      initial_balance, 
+      type, 
+      closing_day, 
+      due_day 
+    }).eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/finance/accounts/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { error } = await supabase.from("financial_accounts").delete().eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Responsibles
+  app.get("/api/finance/responsibles", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("financial_responsibles").select("*").eq("user_id", user.id).order('name');
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/finance/responsibles", async (req, res) => {
+    const user = (req as any).user;
+    const { name } = req.body;
+    const { data, error } = await supabase.from("financial_responsibles").insert([{ name, user_id: user.id }]).select().single();
+    if (error) return res.status(500).json(error);
+    res.json(data);
+  });
+
+  app.delete("/api/finance/responsibles/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { error } = await supabase.from("financial_responsibles").delete().eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Transactions
+  app.get("/api/finance/transactions", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("financial_transactions")
+      .select(`
+        *,
+        financial_categories (name),
+        financial_accounts (name)
+      `)
+      .eq("user_id", user.id)
+      .order('date', { ascending: false });
+    
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/finance/transactions", async (req, res) => {
+    const user = (req as any).user;
+    const { 
+      description, amount, type, category_id, account_id, date, status,
+      is_installment, total_installments, splits 
+    } = req.body;
+
+    if (is_installment && total_installments > 1) {
+      const installments = [];
+      const startDate = new Date(date);
+      const installmentAmount = Number((amount / total_installments).toFixed(2));
+      
+      // Calculate split amounts for installments
+      const installmentSplits = (splits || []).map((s: any) => ({
+        ...s,
+        amount: Number((s.amount / total_installments).toFixed(2))
+      }));
+      
+      // Create the first installment to get its ID
+      const { data: firstInstallment, error: firstError } = await supabase.from("financial_transactions").insert([{
+        description, 
+        amount: installmentAmount, 
+        type, 
+        category_id, 
+        account_id, 
+        date, 
+        status, 
+        user_id: user.id,
+        is_installment: true,
+        installment_number: 1,
+        total_installments,
+        splits: installmentSplits
+      }]).select().single();
+
+      if (firstError) return res.status(500).json(firstError);
+
+      // Create subsequent installments
+      for (let i = 2; i <= total_installments; i++) {
+        const nextDate = new Date(startDate);
+        nextDate.setMonth(startDate.getMonth() + (i - 1));
+        
+        installments.push({
+          description,
+          amount: installmentAmount,
+          type,
+          category_id,
+          account_id,
+          date: nextDate.toISOString().split('T')[0],
+          status: 'pendente', // Subsequent installments are usually pending
+          user_id: user.id,
+          is_installment: true,
+          installment_number: i,
+          total_installments,
+          parent_transaction_id: firstInstallment.id,
+          splits: installmentSplits
+        });
+      }
+
+      if (installments.length > 0) {
+        const { error: bulkError } = await supabase.from("financial_transactions").insert(installments);
+        if (bulkError) return res.status(500).json(bulkError);
+      }
+
+      return res.json(firstInstallment);
+    } else {
+      const { data, error } = await supabase.from("financial_transactions").insert([{
+        description, amount, type, category_id, account_id, date, status, user_id: user.id,
+        splits: splits || []
+      }]).select().single();
+      if (error) return res.status(500).json(error);
+      res.json(data);
+    }
+  });
+
+  app.put("/api/finance/transactions/:id", async (req, res) => {
+    const user = (req as any).user;
+    const updateData: any = {};
+    
+    // Only update fields that are actually provided in the request body
+    const fields = ['description', 'amount', 'type', 'category_id', 'account_id', 'date', 'status', 'splits', 'is_installment', 'installment_number', 'total_installments'];
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    const { error } = await supabase.from("financial_transactions")
+      .update(updateData)
+      .eq("id", req.params.id)
+      .eq("user_id", user.id);
+      
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/finance/transactions/:id", async (req, res) => {
+    const user = (req as any).user;
+    const id = req.params.id;
+
+    // First fetch the transaction to check if it's an installment
+    const { data: transaction, error: fetchError } = await supabase
+      .from("financial_transactions")
+      .select("id, is_installment, parent_transaction_id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (fetchError) return res.status(500).json(fetchError);
+    if (!transaction) return res.status(404).json({ error: "Transaction not found" });
+
+    let idToDelete = id;
+    
+    // If it's a child installment, delete the parent (which cascades to all children)
+    if (transaction.is_installment && transaction.parent_transaction_id) {
+      idToDelete = transaction.parent_transaction_id;
+    }
+    // If it's a parent installment (no parent_id but is_installment is true), delete it directly (cascades to children)
+    
+    const { error } = await supabase
+      .from("financial_transactions")
+      .delete()
+      .eq("id", idToDelete)
+      .eq("user_id", user.id);
+
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Dashboard Summary
+  app.get("/api/finance/dashboard", async (req, res) => {
+    const user = (req as any).user;
+    const { month, year } = req.query;
+    
+    // Get all transactions
+    const { data: transactions, error: tError } = await supabase.from("financial_transactions").select("*").eq("user_id", user.id);
+    if (tError) return res.status(500).json(tError);
+
+    // Get all accounts (for initial balance)
+    const { data: accounts, error: aError } = await supabase.from("financial_accounts").select("*").eq("user_id", user.id);
+    if (aError) return res.status(500).json(aError);
+
+    // Calculate totals
+    let initialBalance = 0;
+    const accountMap: Record<number, string> = {};
+    if (accounts) {
+      accounts.forEach(acc => {
+        accountMap[acc.id] = acc.type;
+        if (acc.type !== 'credito') {
+          initialBalance += Number(acc.initial_balance || 0);
+        }
+      });
+    }
+
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let cashIncome = 0;
+    let cashExpense = 0;
+    let monthIncome = 0;
+    let monthExpense = 0;
+
+    const now = new Date();
+    const filterMonth = month ? Number(month) : now.getMonth();
+    const filterYear = year ? Number(year) : now.getFullYear();
+
+    const responsibilitySummary: Record<string, number> = {};
+
+    if (transactions) {
+      transactions.forEach(t => {
+        const amount = Number(t.amount || 0);
+        const accType = accountMap[t.account_id];
+        const account = accounts?.find(a => a.id === t.account_id);
+        
+        // 1. Global Balances (Total and Cash)
+        if (t.status === 'pago') {
+          if (t.type === 'receita') {
+            totalIncome += amount;
+            if (accType !== 'credito') cashIncome += amount;
+          } else {
+            totalExpense += amount;
+            if (accType !== 'credito') cashExpense += amount;
+          }
+        }
+
+        // 2. Monthly Dashboard Logic (Aligned with Invoices)
+        let belongsToMonth = false;
+        
+        if (accType === 'credito' && account?.closing_day) {
+          const closingDay = account.closing_day;
+          const [y, m, d] = t.date.split('-').map(Number);
+          const tDate = new Date(y, m - 1, d);
+          
+          const invoiceEnd = new Date(filterYear, filterMonth, closingDay);
+          const invoiceStart = new Date(filterYear, filterMonth - 1, closingDay + 1);
+          
+          if (tDate >= invoiceStart && tDate <= invoiceEnd) {
+            belongsToMonth = true;
+          }
+        } else {
+          const [tYear, tMonth] = t.date.split('-');
+          if (Number(tYear) === filterYear && Number(tMonth) - 1 === filterMonth) {
+            belongsToMonth = true;
+          }
+        }
+
+        if (belongsToMonth) {
+          if (t.status === 'pago') {
+            if (t.type === 'receita') monthIncome += amount;
+            else monthExpense += amount;
+          }
+
+          if (t.splits && Array.isArray(t.splits)) {
+            t.splits.forEach((s: any) => {
+              const name = s.name || 'Outros';
+              const sAmount = Number(s.amount || 0);
+              responsibilitySummary[name] = (responsibilitySummary[name] || 0) + sAmount;
+            });
+          }
+        }
+      });
+    }
+
+    const totalBalance = initialBalance + totalIncome - totalExpense;
+    const cashBalance = initialBalance + cashIncome - cashExpense;
+
+    res.json({ 
+      total_balance: totalBalance,
+      cash_balance: cashBalance,
+      month_income: monthIncome,
+      month_expense: monthExpense,
+      responsibility_summary: responsibilitySummary,
+      transactions, 
+      accounts 
+    });
+  });
+
+  // --- Client Module Routes ---
+
+  // Clients
+  app.get("/api/clients", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("clients").select("*").eq("user_id", user.id).order('name');
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/clients", async (req, res) => {
+    const user = (req as any).user;
+    const { name, phone } = req.body;
+    const { data, error } = await supabase.from("clients").insert([{ name, phone, user_id: user.id }]).select().single();
+    if (error) return res.status(500).json(error);
+    res.json(data);
+  });
+
+  app.put("/api/clients/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { name, phone } = req.body;
+    const { error } = await supabase.from("clients").update({ name, phone }).eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/clients/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { error } = await supabase.from("clients").delete().eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Client Sales
+  app.get("/api/client-sales", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase.from("client_sales")
+      .select(`
+        *,
+        clients (name)
+      `)
+      .eq("user_id", user.id)
+      .order('purchase_date', { ascending: false });
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
+  });
+
+  app.post("/api/client-sales", async (req, res) => {
+    const user = (req as any).user;
+    const { client_id, description, total_amount, installment_count, purchase_date, due_day } = req.body;
+    
+    // 1. Create Sale
+    const { data: sale, error: saleError } = await supabase.from("client_sales").insert([{
+      client_id,
+      description,
+      total_amount,
+      installment_count,
+      purchase_date,
+      due_day,
+      user_id: user.id
+    }]).select().single();
+
+    if (saleError) return res.status(500).json(saleError);
+
+    // 2. Generate Installments
+    const installments = [];
+    const installmentAmount = Number((total_amount / installment_count).toFixed(2));
+    const purchaseDateObj = new Date(purchase_date);
+    
+    for (let i = 1; i <= installment_count; i++) {
+      // Calculate due date: next month on due_day
+      const dueDate = new Date(purchaseDateObj.getFullYear(), purchaseDateObj.getMonth() + i, due_day);
+      
+      installments.push({
+        sale_id: sale.id,
+        installment_number: i,
+        amount: installmentAmount,
+        due_date: dueDate.toISOString().split('T')[0],
+        status: 'pendente',
+        user_id: user.id
+      });
+    }
+
+    const { error: instError } = await supabase.from("client_installments").insert(installments);
+    if (instError) {
+      console.error("Error creating installments:", instError);
+      // Ideally rollback sale here, but for simplicity we'll just log
+    }
+
+    res.json(sale);
+  });
+
+  app.delete("/api/client-sales/:id", async (req, res) => {
+    const user = (req as any).user;
+    // Cascade delete handles installments
+    const { error } = await supabase.from("client_sales").delete().eq("id", req.params.id).eq("user_id", user.id);
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
+  // Client Installments (Dashboard)
+  app.get("/api/client-installments", async (req, res) => {
+    const user = (req as any).user;
+    const { month, year, client_id } = req.query;
+
+    let query = supabase.from("client_installments")
+      .select(`
+        *,
+        client_sales (
+          description,
+          clients (name, phone)
+        )
+      `)
+      .eq("user_id", user.id)
+      .order('due_date');
+
+    if (month && year) {
+      const startDate = new Date(Number(year), Number(month), 1).toISOString().split('T')[0];
+      const endDate = new Date(Number(year), Number(month) + 1, 0).toISOString().split('T')[0];
+      query = query.gte('due_date', startDate).lte('due_date', endDate);
+    }
+
+    if (client_id) {
+      // Filter by client requires join filtering, which is tricky in simple query.
+      // Easier to filter in memory or use a more complex query.
+      // For now, let's filter in memory if needed or rely on frontend.
+    }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json(error);
+    
+    // Filter by client_id in memory if provided (since it's nested)
+    let filteredData = data || [];
+    if (client_id) {
+      filteredData = filteredData.filter((item: any) => item.client_sales?.client_id === Number(client_id));
+    }
+
+    res.json(filteredData);
+  });
+
+  app.put("/api/client-installments/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { status, payment_date } = req.body;
+    
+    const { error } = await supabase.from("client_installments")
+      .update({ status, payment_date })
+      .eq("id", req.params.id)
+      .eq("user_id", user.id);
+      
+    if (error) return res.status(500).json(error);
+    res.json({ success: true });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

@@ -9,18 +9,28 @@ export default function App() {
   const [supabaseConfig, setSupabaseConfig] = useState<{ supabaseUrl: string, supabaseKey: string } | null>(null);
 
   useEffect(() => {
-    let subscription: any = null;
-
-    async function initAuth() {
+    async function fetchConfig() {
       try {
         const res = await fetch('/api/config');
         if (!res.ok) throw new Error('Failed to fetch config');
         
         const config = await res.json();
         setSupabaseConfig(config);
+      } catch (error) {
+        console.error('Failed to fetch config:', error);
+      }
+    }
+    fetchConfig();
+  }, []);
 
-        const supabase = createClient(config.supabaseUrl, config.supabaseKey);
-        
+  useEffect(() => {
+    if (!supabaseConfig) return;
+
+    const supabase = createClient(supabaseConfig.supabaseUrl, supabaseConfig.supabaseKey);
+    let subscription: any = null;
+
+    async function initSession() {
+      try {
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
 
@@ -28,20 +38,19 @@ export default function App() {
           setSession(session);
         });
         subscription = data.subscription;
-
       } catch (error) {
-        console.error('Failed to init auth:', error);
+        console.error('Failed to init session:', error);
       } finally {
         setAuthLoading(false);
       }
     }
-    
-    initAuth();
+
+    initSession();
 
     return () => {
       if (subscription) subscription.unsubscribe();
     };
-  }, []);
+  }, [supabaseConfig]);
 
   if (authLoading) {
     return (

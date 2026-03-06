@@ -87,3 +87,66 @@ export interface DashboardData {
   act2_start?: string;
   exam_start?: string;
 }
+
+export interface FinancialCategory {
+  id: number;
+  name: string;
+  type: 'receita' | 'despesa';
+}
+
+export interface FinancialAccount {
+  id: number;
+  name: string;
+  initial_balance: number;
+  type: 'corrente' | 'credito' | 'dinheiro';
+  closing_day?: number;
+  due_day?: number;
+}
+
+export interface FinancialTransaction {
+  id: number;
+  description: string;
+  amount: number;
+  type: 'receita' | 'despesa';
+  category_id: number;
+  account_id: number;
+  date: string;
+  status: 'pago' | 'pendente';
+  is_installment?: boolean;
+  installment_number?: number;
+  total_installments?: number;
+  splits?: { name: string; amount: number }[];
+}
+
+export interface Client {
+  id: number;
+  name: string;
+  phone?: string;
+}
+
+export interface ClientSale {
+  id: number;
+  client_id: number;
+  description: string;
+  total_amount: number;
+  installment_count: number;
+  purchase_date: string;
+  due_day: number;
+}
+
+export interface ClientInstallment {
+  id: number;
+  sale_id: number;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  status: 'pendente' | 'pago';
+  payment_date?: string;
+  client_sales?: {
+    description: string;
+    clients: {
+      name: string;
+      phone?: string;
+    }
+  }
+}
