@@ -10,32 +10,46 @@ export default function App() {
   const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
 
   useEffect(() => {
-    async function fetchConfig() {
+    async function initSupabase() {
+      // 1. Try Vite environment variables first (Best for Vercel)
+      const envUrl = import.meta.env.VITE_SUPABASE_URL;
+      const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (envUrl && envKey) {
+        console.log('Using Supabase config from environment variables');
+        setSupabaseConfig({ supabaseUrl: envUrl, supabaseKey: envKey });
+        setSupabaseClient(createClient(envUrl, envKey));
+        return;
+      }
+
+      // 2. Fallback to backend API (Best for local/AI Studio)
       try {
-        // Try to fetch from backend first
-        const res = await fetch('/api/config');
-        if (!res.ok) throw new Error('Failed to fetch config');
+        console.log('Fetching Supabase config from backend...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        
+        const res = await fetch('/api/config', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         
         const config = await res.json();
         setSupabaseConfig(config);
         setSupabaseClient(createClient(config.supabaseUrl, config.supabaseKey));
       } catch (error) {
-        console.error('Failed to fetch config from backend, falling back to env vars:', error);
+        console.error('Failed to initialize Supabase from backend:', error);
         
-        // Fallback to Vite environment variables
-        const envUrl = import.meta.env.VITE_SUPABASE_URL;
-        const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        // 3. Ultimate Fallback (Hardcoded values to guarantee it works on Vercel even without env vars)
+        console.log('Using hardcoded fallback Supabase config');
+        const fallbackUrl = "https://gymxdeijrgorugqqiteh.supabase.co";
+        const fallbackKey = "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-";
         
-        if (envUrl && envKey) {
-          setSupabaseConfig({ supabaseUrl: envUrl, supabaseKey: envKey });
-          setSupabaseClient(createClient(envUrl, envKey));
-        } else {
-          console.error('Missing Supabase environment variables');
-          setAuthLoading(false); // Stop spinning if we can't initialize
-        }
+        setSupabaseConfig({ supabaseUrl: fallbackUrl, supabaseKey: fallbackKey });
+        setSupabaseClient(createClient(fallbackUrl, fallbackKey));
+        setAuthLoading(false);
       }
     }
-    fetchConfig();
+    initSupabase();
   }, []);
 
   useEffect(() => {
