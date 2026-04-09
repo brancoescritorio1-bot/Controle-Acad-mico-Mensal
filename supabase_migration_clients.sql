@@ -38,3 +38,13 @@ CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
 CREATE INDEX IF NOT EXISTS idx_client_sales_user_id ON client_sales(user_id);
 CREATE INDEX IF NOT EXISTS idx_client_installments_user_id ON client_installments(user_id);
 CREATE INDEX IF NOT EXISTS idx_client_installments_due_date ON client_installments(due_date);
+
+-- Habilitar RLS
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_installments ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de Segurança
+CREATE POLICY "Users can manage their own clients" ON clients FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own client sales" ON client_sales FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own client installments" ON client_installments FOR ALL USING (auth.uid() = user_id);

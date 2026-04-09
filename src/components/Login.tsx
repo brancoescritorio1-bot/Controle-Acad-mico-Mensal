@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
-  supabaseUrl: string;
-  supabaseKey: string;
+  supabaseClient: SupabaseClient;
   onLoginSuccess: () => void;
 }
 
-export function Login({ supabaseUrl, supabaseKey, onLoginSuccess }: LoginProps) {
+export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,24 +15,28 @@ export function Login({ supabaseUrl, supabaseKey, onLoginSuccess }: LoginProps) 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
 
+    if (!email.trim() || !password.trim()) {
+      setError('Por favor, preencha o e-mail e a senha.');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabaseClient.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
         onLoginSuccess();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { error } = await supabaseClient.auth.signUp({
           email,
           password,
         });

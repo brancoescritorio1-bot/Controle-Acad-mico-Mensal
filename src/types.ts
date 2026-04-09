@@ -72,10 +72,10 @@ export interface DashboardData {
   aula3_present: number;
   aula4_present: number;
   act1_status: string;
-  act1_grade: number;
+  act1_grade: number | null;
   act2_status: string;
-  act2_grade: number;
-  exam_grade: number;
+  act2_grade: number | null;
+  exam_grade: number | null;
   c1_watched: number;
   c2_watched: number;
   c3_watched: number;
@@ -115,13 +115,14 @@ export interface FinancialTransaction {
   is_installment?: boolean;
   installment_number?: number;
   total_installments?: number;
-  splits?: { name: string; amount: number }[];
+  splits?: { name: string; amount: number; status?: 'pago' | 'pendente' }[];
 }
 
 export interface Client {
   id: number;
   name: string;
   phone?: string;
+  last_purchase?: string | null;
 }
 
 export interface ClientSale {
@@ -144,9 +145,110 @@ export interface ClientInstallment {
   payment_date?: string;
   client_sales?: {
     description: string;
+    installment_count: number;
     clients: {
       name: string;
       phone?: string;
     }
   }
+}
+
+export interface ChacaraUser {
+  id: number;
+  name: string;
+  phone: string;
+  last_reading: number;
+  last_water_reading?: number;
+  has_energy?: boolean;
+  has_water?: boolean;
+  energy_meters_count?: number;
+  water_meters_count?: number;
+  last_reading_2?: number;
+  last_water_reading_2?: number;
+  energy_active?: boolean;
+  water_active?: boolean;
+  energy_readings?: { prev: number; curr: number }[];
+  water_readings?: { prev: number; curr: number }[];
+}
+
+export interface ChacaraBill {
+  id: number;
+  user_id: string; // This is the owner UUID
+  chacara_user_id: number; // This is the resident ID
+  month_reference: string;
+  reading_date: string;
+  due_date: string;
+  // Energy
+  prev_reading: number;
+  curr_reading: number;
+  prev_reading_2?: number;
+  curr_reading_2?: number;
+  kwh_value: number;
+  // Water
+  water_prev_reading: number;
+  water_curr_reading: number;
+  water_prev_reading_2?: number;
+  water_curr_reading_2?: number;
+  water_value: number;
+  water_service_fee?: number;
+  energy_readings?: { prev: number; curr: number }[];
+  water_readings?: { prev: number; curr: number }[];
+  // Apportionment
+  apportionment_value: number;
+  include_apportionment: boolean;
+  
+  reserve_fund: number;
+  total: number;
+  include_reserve_fund: boolean;
+  status: 'pending' | 'paid' | 'partial';
+  payment_date?: string;
+  amount_paid?: number;
+  paid_categories?: Record<string, boolean>;
+  created_at?: string;
+}
+
+export interface ChacaraSettings {
+  id: number;
+  default_kwh: number;
+  default_water_value: number;
+  default_water_service_fee?: number;
+  default_apportionment_value: number;
+  default_due_day: number;
+  default_reading_day: number;
+  reserve_fund_value: number;
+  default_month_reference?: string;
+  whatsapp_observation?: string;
+}
+
+export interface ChacaraAccountability {
+  id: string;
+  user_id: string;
+  month_reference: string;
+  initial_reserve_fund: number;
+  initial_apportionment: number;
+  initial_services: number;
+  created_at?: string;
+}
+
+export interface ChacaraExpense {
+  id: string;
+  accountability_id: string;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  receipt_url?: string;
+  created_at?: string;
+}
+
+export interface PersonalTask {
+  id: number;
+  user_id?: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'completed';
+  eisenhower_quadrant?: 'urgent_important' | 'not_urgent_important' | 'urgent_not_important' | 'not_urgent_not_important';
+  created_at?: string;
 }

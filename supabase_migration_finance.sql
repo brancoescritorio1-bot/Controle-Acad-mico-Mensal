@@ -52,3 +52,15 @@ CREATE INDEX IF NOT EXISTS idx_financial_accounts_user_id ON financial_accounts(
 CREATE INDEX IF NOT EXISTS idx_financial_transactions_user_id ON financial_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_financial_transactions_date ON financial_transactions(date);
 CREATE INDEX IF NOT EXISTS idx_financial_responsibles_user_id ON financial_responsibles(user_id);
+
+-- Habilitar RLS
+ALTER TABLE financial_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_responsibles ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de Segurança
+CREATE POLICY "Users can manage their own financial categories" ON financial_categories FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own financial accounts" ON financial_accounts FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own financial transactions" ON financial_transactions FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own financial responsibles" ON financial_responsibles FOR ALL USING (auth.uid() = user_id);

@@ -7,9 +7,27 @@
 }
 
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+  html, body {
+    @apply antialiased text-gray-900 bg-gray-50;
+    overflow-x: hidden;
+    width: 100%;
+    height: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
+
+  #root {
+    @apply min-h-screen flex flex-col;
+    width: 100%;
+  }
+}
+
+/* Custom scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .pb-safe {
