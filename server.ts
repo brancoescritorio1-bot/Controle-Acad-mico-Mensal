@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
@@ -22,6 +23,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey || supabaseKey, {
 });
 
 const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -77,6 +79,16 @@ app.get("/api/config", (req, res) => {
       return res.status(501).json({ error: "Service role key not configured on server." });
     }
 
+    try {
+      const payload = JSON.parse(Buffer.from(serviceRoleKey.split(".")[1], "base64").toString());
+      if (payload.role === "anon") {
+        console.warn("SUPABASE_SERVICE_ROLE_KEY is configured with the anon key. Cannot list users.");
+        return res.status(501).json({ error: "Service role key not configured on server." });
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -84,12 +96,17 @@ app.get("/api/config", (req, res) => {
       }
     });
 
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
       console.error("Error listing users:", error.message);
+      if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
+        return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+      }
       return res.status(500).json({ error: error.message });
     }
+
+    const users = data?.users || [];
 
     // Map to safe user object
     const safeUsers = users.map(u => ({
@@ -1768,33 +1785,26 @@ app.get("/api/config", (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
   });
 
-  // Export the Express app for Vercel Serverless Functions
-  export default app;
+  async function setupVite() {
+    // Vite middleware for development
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { 
+          middlewareMode: true,
+          hmr: process.env.DISABLE_HMR === 'true' ? false : undefined
+        },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static(path.join(__dirname, "dist")));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "dist", "index.html"));
+      });
+    }
 
-  // Only run the server locally (not on Vercel)
-  if (!process.env.VERCEL) {
-    async function startLocalServer() {
-      const PORT = process.env.PORT || 3000;
-      
-      // Vite middleware for development
-      if (process.env.NODE_ENV !== "production") {
-        const { createServer: createViteServer } = await import("vite");
-        const vite = await createViteServer({
-          server: { 
-            middlewareMode: true,
-            hmr: process.env.DISABLE_HMR === 'true' ? false : undefined
-          },
-          appType: "spa",
-        });
-        app.use(vite.middlewares);
-      } else {
-        app.use(express.static(path.join(__dirname, "dist")));
-        app.get("*", (req, res) => {
-          res.sendFile(path.join(__dirname, "dist", "index.html"));
-        });
-      }
-
-      app.listen(Number(PORT), "0.0.0.0", async () => {
+    if (!process.env.VERCEL) {
+      app.listen(PORT, "0.0.0.0", async () => {
         console.log(`Server running on http://localhost:${PORT}`);
         
         // Test Supabase connection and tables
@@ -1813,6 +1823,10 @@ app.get("/api/config", (req, res) => {
         console.log("\n💡 DICA: Se alguma tabela acima falhou, execute o script SQL no painel do Supabase.\n");
       });
     }
-    
-    startLocalServer();
   }
+
+  if (!process.env.VERCEL) {
+    setupVite();
+  }
+
+  export default app;

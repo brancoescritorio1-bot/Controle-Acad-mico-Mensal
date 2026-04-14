@@ -145,6 +145,7 @@ import { ResponsibleManager } from './components/ResponsibleManager';
 
 import { ChacaraManager } from './components/ChacaraManager';
 import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
+import { SafetyReportGenerator } from './components/SafetyReportGenerator';
 
 export default function MainApp({ onLogout, session, supabaseClient }: { onLogout: () => void, session: Session | null, supabaseClient: SupabaseClient | null }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -1173,11 +1174,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                  <Briefcase size={18} className="md:w-6 md:h-6" />}
               </div>
               <div>
-                <h1 className="font-bold text-base md:text-xl leading-tight text-gray-900 tracking-tight">OrganizaAI</h1>
+                <h1 className="font-bold text-base md:text-xl leading-tight text-gray-900 tracking-tight">
+                  OrganizaAI
+                </h1>
                 <p className="text-[9px] md:text-xs text-gray-500 font-semibold uppercase tracking-wider">
                   {activeModule === 'academic' ? 'Acadêmico' : 
                    activeModule === 'financial' ? 'Financeiro' : 
-                   activeModule === 'chacara' ? 'Chácara' : 
+                   activeModule === 'chacara' ? 'Gestão' : 
                    activeModule === 'personal' ? 'Pessoal' : 'Trabalho'}
                 </p>
               </div>
@@ -4729,6 +4732,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </Card>
                 </div>
               )}
+
+              {activeTab === 'work_safety' && (
+                <SafetyReportGenerator />
+              )}
             </motion.div>
           )}
 
@@ -4819,6 +4826,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             <>
               <TabButton active={activeTab === 'work_clients'} onClick={() => setActiveTab('work_clients')} icon={Users} label="Clientes" />
               <TabButton active={activeTab === 'work_messages'} onClick={() => setActiveTab('work_messages')} icon={MessageSquare} label="Mensagens" />
+              <TabButton active={activeTab === 'work_safety'} onClick={() => setActiveTab('work_safety')} icon={AlertTriangle} label="Segurança" />
             </>
           )}
         </div>

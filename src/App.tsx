@@ -3,19 +3,27 @@ import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import MainApp from './MainApp';
 
-// Hardcoded fallback values to guarantee it works on Vercel
-const FALLBACK_URL = "https://gymxdeijrgorugqqiteh.supabase.co";
-const FALLBACK_KEY = "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-";
-
-// Initialize synchronously
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || FALLBACK_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [supabaseClient] = useState<SupabaseClient>(supabase);
+  const [supabaseConfig, setSupabaseConfig] = useState<{ supabaseUrl: string, supabaseKey: string } | null>(null);
+  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
+
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) throw new Error('Failed to fetch config');
+        
+        const config = await res.json();
+        setSupabaseConfig(config);
+        setSupabaseClient(createClient(config.supabaseUrl, config.supabaseKey));
+      } catch (error) {
+        console.error('Failed to fetch config:', error);
+      }
+    }
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     if (!supabaseClient) return;
@@ -31,12 +39,14 @@ export default function App() {
           setSession(null);
           // If refresh token is invalid, clear local storage manually to prevent infinite loop
           if (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token')) {
+            const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
               if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-                localStorage.removeItem(key);
+                keysToRemove.push(key);
               }
             }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
           }
           await supabaseClient!.auth.signOut().catch(() => {});
         } else {
@@ -46,12 +56,14 @@ export default function App() {
         const { data: { subscription: authSubscription } } = supabaseClient!.auth.onAuthStateChange((event, session) => {
           if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
             setSession(null);
+            const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
               if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-                localStorage.removeItem(key);
+                keysToRemove.push(key);
               }
             }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
           } else {
             setSession(session);
           }
@@ -62,12 +74,14 @@ export default function App() {
         console.error('Failed to init session:', error);
         setSession(null);
         if (error?.message?.includes('Refresh Token Not Found') || error?.message?.includes('Invalid Refresh Token')) {
+          const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-              localStorage.removeItem(key);
+              keysToRemove.push(key);
             }
           }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
         }
         await supabaseClient!.auth.signOut().catch(() => {});
       } finally {

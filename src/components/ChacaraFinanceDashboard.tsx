@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Wallet, TrendingUp, Droplets, Zap, Building2, Briefcase, Users, Download, Plus, Trash2, FileText, Image as ImageIcon, X, Eye } from 'lucide-react';
 import { ChacaraBill } from '../types';
 import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 interface ChacaraFinanceDashboardProps {
   bills: ChacaraBill[];
@@ -129,10 +130,49 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
     if (!dashboardRef.current) return;
     
     try {
-      window.print();
+      // Temporarily hide elements with 'no-export' or 'print:hidden'
+      const elementsToHide = dashboardRef.current.querySelectorAll('.no-export, .print\\:hidden');
+      const originalDisplays: string[] = [];
+      
+      elementsToHide.forEach((el: any) => {
+        originalDisplays.push(el.style.display);
+        el.style.display = 'none';
+      });
+
+      const dataUrl = await toPng(dashboardRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#f9fafb' // bg-gray-50
+      });
+
+      // Restore elements
+      elementsToHide.forEach((el: any, index) => {
+        el.style.display = originalDisplays[index];
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+      
+      const finalWidth = imgProps.width * ratio;
+      const finalHeight = imgProps.height * ratio;
+      
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.save(`Dashboard_Chacara_${filterMonth}.pdf`);
     } catch (error: any) {
-      console.error('Erro ao imprimir o dashboard:', error);
-      alert(`Ocorreu um erro ao tentar imprimir o dashboard: ${error.message || error}. Tente novamente.`);
+      console.error('Erro ao exportar o dashboard:', error);
+      alert(`Ocorreu um erro ao tentar exportar o dashboard: ${error.message || error}. Tente novamente.`);
     }
   };
 

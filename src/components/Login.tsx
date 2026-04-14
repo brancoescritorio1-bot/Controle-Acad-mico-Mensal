@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, Trees } from 'lucide-react';
 
 interface LoginProps {
   supabaseClient: SupabaseClient;
@@ -56,7 +56,12 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Bem-vindo</h1>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+                <Trees size={32} />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">OrganizaAI</h1>
             <p className="text-gray-500">
               {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta para começar'}
             </p>

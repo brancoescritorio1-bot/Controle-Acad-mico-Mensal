@@ -238,7 +238,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
           water_active: true
         });
         setEditingUser(null);
-        fetchData();
+        await fetchData();
         if (onDataUpdate) onDataUpdate();
         alert(editingUser ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!');
       } else {
@@ -322,6 +322,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         energy_readings: energyReadings,
         water_readings: waterReadings
       });
+    } else {
+      alert('Usuário não encontrado.');
     }
   };
 
@@ -354,7 +356,10 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   };
 
   const handleSaveBill = async (sendWhatsAppAfterSave: boolean = false) => {
+    console.log('DEBUG: handleSaveBill - users:', users);
+    console.log('DEBUG: handleSaveBill - billForm.user_id:', billForm.user_id);
     const user = users.find(u => u.id === Number(billForm.user_id));
+    console.log('DEBUG: handleSaveBill - found user:', user);
     const hasEnergy = user ? (user.has_energy !== false && user.energy_active !== false) : true;
     const hasWater = user ? (user.has_water !== false && user.water_active !== false) : true;
 
@@ -783,9 +788,12 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   };
 
   const sendWhatsApp = (bill: ChacaraBill) => {
-    const user = users.find(u => u.id === bill.chacara_user_id);
+    console.log('DEBUG: sendWhatsApp - bill:', bill);
+    console.log('DEBUG: sendWhatsApp - users:', users);
+    const user = users.find(u => u.id === Number(bill.chacara_user_id));
+    console.log('DEBUG: sendWhatsApp - found user:', user);
     if (!user) {
-      alert('Usuário não encontrado para este lançamento.');
+      alert(`Usuário não encontrado para este lançamento. ID procurado: ${bill.chacara_user_id}`);
       return;
     }
 

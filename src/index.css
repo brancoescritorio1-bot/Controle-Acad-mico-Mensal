@@ -19,6 +19,13 @@
     @apply min-h-screen flex flex-col;
     width: 100%;
   }
+
+  /* Prevent iOS auto-zoom on focus */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* Custom scrollbar hide */
