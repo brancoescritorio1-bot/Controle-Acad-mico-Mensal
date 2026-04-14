@@ -99,11 +99,11 @@ app.get("/api/config", (req, res) => {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
-      console.error("Error listing users:", error.message);
+      console.error("Error listing users:", error.message, error);
       if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
         return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
       }
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: `Supabase Error: ${error.message}` });
     }
 
     const users = data?.users || [];
