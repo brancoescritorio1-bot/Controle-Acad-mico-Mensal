@@ -72,52 +72,57 @@ app.get("/api/config", (req, res) => {
   app.use(authenticateUser);
 
   app.get("/api/users", async (req, res) => {
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!serviceRoleKey) {
-      console.warn("SUPABASE_SERVICE_ROLE_KEY missing. Cannot list users.");
-      return res.status(501).json({ error: "Service role key not configured on server." });
-    }
-
     try {
-      const payload = JSON.parse(Buffer.from(serviceRoleKey.split(".")[1], "base64").toString());
-      if (payload.role === "anon") {
-        console.warn("SUPABASE_SERVICE_ROLE_KEY is configured with the anon key. Cannot list users.");
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (!serviceRoleKey) {
+        console.warn("SUPABASE_SERVICE_ROLE_KEY missing. Cannot list users.");
         return res.status(501).json({ error: "Service role key not configured on server." });
       }
-    } catch (e) {
-      // Ignore parsing errors
-    }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
+      try {
+        const payload = JSON.parse(Buffer.from(serviceRoleKey.split(".")[1], "base64").toString());
+        if (payload.role === "anon") {
+          console.warn("SUPABASE_SERVICE_ROLE_KEY is configured with the anon key. Cannot list users.");
+          return res.status(501).json({ error: "Service role key not configured on server." });
+        }
+      } catch (e) {
+        // Ignore parsing errors
       }
-    });
 
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
 
-    if (error) {
-      console.error("Error listing users:", error.message, error);
-      if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
-        return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+
+      if (error) {
+        console.error("Error listing users:", error.message, error);
+        if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
+          return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+        }
+        return res.status(500).json({ error: `Supabase Error: ${error.message}` });
       }
-      return res.status(500).json({ error: `Supabase Error: ${error.message}` });
+
+      const users = data?.users || [];
+
+      // Map to safe user object
+      const safeUsers = users.map(u => ({
+        id: u.id,
+        email: u.email,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at,
+        role: u.role
+      }));
+
+      res.json(safeUsers);
+    } catch (err: any) {
+      console.error("Unexpected error in /api/users:", err);
+      res.status(500).json({ error: `Server Error: ${err.message || String(err)}` });
     }
-
-    const users = data?.users || [];
-
-    // Map to safe user object
-    const safeUsers = users.map(u => ({
-      id: u.id,
-      email: u.email,
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at,
-      role: u.role
-    }));
-
-    res.json(safeUsers);
   });
 
   app.get("/api/periods", async (req, res) => {
