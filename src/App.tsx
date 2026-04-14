@@ -20,6 +20,7 @@ export default function App() {
         setSupabaseClient(createClient(config.supabaseUrl, config.supabaseKey));
       } catch (error) {
         console.error('Failed to fetch config:', error);
+        setAuthLoading(false); // Stop loading if config fails
       }
     }
     fetchConfig();
