@@ -178,6 +178,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [chacaraBills, setChacaraBills] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState<Record<string, boolean>>({});
   const [settingsSubjectId, setSettingsSubjectId] = useState<string>('');
+  const [userPermissions, setUserPermissions] = useState<string[]>(['dashboard', 'academic', 'financial', 'chacara', 'work', 'personal']);
 
   const [settingsForm, setSettingsForm] = useState<Partial<Activities>>({});
 
@@ -362,6 +363,20 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     } catch (e) {
       console.error("Error fetching chacara bills:", e);
       setChacaraBills([]);
+    }
+  };
+
+  const fetchUserPermissions = async () => {
+    try {
+      const res = await fetchWithAuth('/api/user-permissions');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.allowed_tabs) {
+          setUserPermissions(data.allowed_tabs);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching user permissions:", e);
     }
   };
 
@@ -704,6 +719,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     fetchChacaraBills();
     fetchFinancialData();
     fetchClientInstallments();
+    fetchUserPermissions();
   }, []);
 
   useEffect(() => {
@@ -4810,10 +4826,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         <div className="max-w-6xl mx-auto flex justify-between w-full">
           {activeModule === 'academic' ? (
             <>
-              <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />
-              <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Users} label="Presença" />
-              <TabButton active={activeTab === 'activities'} onClick={() => setActiveTab('activities')} icon={FileText} label="Notas" />
-              <TabButton active={activeTab === 'web'} onClick={() => setActiveTab('web')} icon={MonitorPlay} label="Web" />
+              {userPermissions.includes('dashboard') && <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />}
+              {userPermissions.includes('academic') && <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Users} label="Presença" />}
+              {userPermissions.includes('academic') && <TabButton active={activeTab === 'activities'} onClick={() => setActiveTab('activities')} icon={FileText} label="Notas" />}
+              {userPermissions.includes('academic') && <TabButton active={activeTab === 'web'} onClick={() => setActiveTab('web')} icon={MonitorPlay} label="Web" />}
               <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} label="Config" />
               <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={Shield} label="Usuários" />
             </>

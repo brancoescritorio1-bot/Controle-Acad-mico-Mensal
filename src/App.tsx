@@ -55,7 +55,8 @@ export default function App() {
         }
 
         const { data: { subscription: authSubscription } } = supabaseClient!.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
+          console.log('Auth state changed:', event);
+          if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED' || event === 'TOKEN_REFRESHED' && !session) {
             setSession(null);
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {

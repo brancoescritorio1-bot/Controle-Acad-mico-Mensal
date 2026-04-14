@@ -63,27 +63,8 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">OrganizaAI</h1>
             <p className="text-gray-500">
-              {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta para começar'}
+              Entre com suas credenciais
             </p>
-          </div>
-
-          <div className="flex mb-6 bg-gray-100 p-1 rounded-lg">
-            <button
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => { setIsLogin(true); setError(null); setMessage(null); }}
-            >
-              Entrar
-            </button>
-            <button
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                !isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => { setIsLogin(false); setError(null); setMessage(null); }}
-            >
-              Criar Conta
-            </button>
           </div>
 
           {error && (
@@ -140,7 +121,7 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
-                isLogin ? 'Entrar' : 'Cadastrar'
+                'Entrar'
               )}
             </button>
           </form>
