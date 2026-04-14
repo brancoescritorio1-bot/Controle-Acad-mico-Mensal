@@ -1,12 +1,16 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let currentDir = "";
+try {
+  const __filename = fileURLToPath(import.meta.url);
+  currentDir = path.dirname(__filename);
+} catch (e) {
+  currentDir = __dirname || process.cwd();
+}
 
 dotenv.config();
 
@@ -1793,6 +1797,7 @@ app.get("/api/config", (req, res) => {
   async function setupVite() {
     // Vite middleware for development
     if (process.env.NODE_ENV !== "production") {
+      const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { 
           middlewareMode: true,
@@ -1802,9 +1807,9 @@ app.get("/api/config", (req, res) => {
       });
       app.use(vite.middlewares);
     } else {
-      app.use(express.static(path.join(__dirname, "dist")));
+      app.use(express.static(path.join(currentDir, "dist")));
       app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "dist", "index.html"));
+        res.sendFile(path.join(currentDir, "dist", "index.html"));
       });
     }
 
