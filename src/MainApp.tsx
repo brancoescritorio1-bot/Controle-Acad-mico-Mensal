@@ -156,6 +156,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [selectedSubjectDashboardFilter, setSelectedSubjectDashboardFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   // Form States
   const [subjectForm, setSubjectForm] = useState({ 
@@ -366,16 +367,26 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
   const fetchUsers = async () => {
     try {
+      setUsersError(null);
       const res = await fetchWithAuth('/api/users');
       if (res.status === 501) {
         // Service role key missing
+        const errorData = await res.json().catch(() => ({}));
+        setUsersError(errorData.error || "Service role key not configured on server.");
+        setUsersList([]);
+        return;
+      }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        setUsersError(errorData.error || `Error ${res.status}: Failed to fetch users`);
         setUsersList([]);
         return;
       }
       const data = await res.json();
       setUsersList(Array.isArray(data) ? data : []);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error fetching users:", e);
+      setUsersError(e.message || "Network error fetching users");
     }
   };
 
@@ -2443,10 +2454,16 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           {activeTab === 'users' && (
             <motion.div key="users" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <Card title="Usuários Cadastrados" icon={Shield}>
-                {usersList.length === 0 ? (
+                {usersError ? (
+                  <div className="text-center py-8 text-red-500">
+                    <AlertCircle className="mx-auto h-8 w-8 mb-2" />
+                    <p className="font-semibold">Erro ao carregar usuários</p>
+                    <p className="text-sm mt-1">{usersError}</p>
+                    <p className="text-xs mt-2 text-gray-500">Verifique a variável SUPABASE_SERVICE_ROLE_KEY no servidor.</p>
+                  </div>
+                ) : usersList.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <p>Nenhum usuário encontrado ou chave de serviço não configurada.</p>
-                    <p className="text-xs mt-2">Verifique a variável SUPABASE_SERVICE_ROLE_KEY no servidor.</p>
+                    <p>Nenhum usuário encontrado.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
