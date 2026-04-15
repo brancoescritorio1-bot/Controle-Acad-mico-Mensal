@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Mail, Lock, Loader2, AlertCircle, Trees } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface LoginProps {
   supabaseClient: SupabaseClient;
@@ -53,7 +54,12 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden"
+      >
         <div className="p-8">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
@@ -63,7 +69,7 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">OrganizaAI</h1>
             <p className="text-gray-500">
-              Entre com suas credenciais
+              {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta'}
             </p>
           </div>
 
@@ -113,7 +119,9 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -121,12 +129,23 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
-                'Entrar'
+                isLogin ? 'Entrar' : 'Criar Conta'
               )}
-            </button>
+            </motion.button>
+            
+            <div className="text-center text-sm text-gray-600">
+              {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="ml-1 text-indigo-600 font-semibold hover:underline"
+              >
+                {isLogin ? 'Criar conta' : 'Entrar'}
+              </button>
+            </div>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

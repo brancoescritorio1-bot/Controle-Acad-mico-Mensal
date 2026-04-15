@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, FileText, Download, Upload, Calendar, DollarSign, PieChart, TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, FileText, Download, Upload, Calendar, DollarSign, PieChart, TrendingUp, TrendingDown, CheckCircle, Loader2 } from 'lucide-react';
 import { ChacaraAccountability, ChacaraExpense, ChacaraBill } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SupabaseClient } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 
 interface ChacaraAccountabilityManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -17,6 +18,8 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
   const [expenses, setExpenses] = useState<ChacaraExpense[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
   
   const [form, setForm] = useState({
     initial_reserve_fund: 0,
@@ -124,6 +127,8 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
   };
 
   const handleSaveAccountability = async () => {
+    setIsSaving(true);
+    const loadingToast = toast.loading('Salvando dados...');
     try {
       const res = await fetchWithAuth('/api/chacara/accountability', {
         method: 'POST',
@@ -135,11 +140,15 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       if (res.ok) {
         const data = await res.json();
         setAccountability(data);
-        alert('Dados salvos com sucesso!');
+        toast.success('Dados salvos com sucesso!', { id: loadingToast });
+      } else {
+        throw new Error('Erro ao salvar');
       }
     } catch (error) {
       console.error('Error saving accountability:', error);
-      alert('Erro ao salvar dados.');
+      toast.error('Erro ao salvar dados.', { id: loadingToast });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -148,11 +157,12 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
     if (!file) return;
 
     if (!supabaseClient) {
-      alert('Cliente Supabase não inicializado. Tente novamente em instantes.');
+      toast.error('Cliente Supabase não inicializado.');
       return;
     }
 
     setIsUploading(true);
+    const loadingToast = toast.loading('Enviando arquivo...');
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -169,9 +179,10 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       const { data } = supabaseClient.storage.from('chacara_receipts').getPublicUrl(filePath);
       
       setExpenseForm(prev => ({ ...prev, receipt_url: data.publicUrl }));
+      toast.success('Arquivo enviado com sucesso!', { id: loadingToast });
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Erro ao fazer upload do arquivo.');
+      toast.error('Erro ao fazer upload do arquivo.', { id: loadingToast });
     } finally {
       setIsUploading(false);
     }
@@ -179,15 +190,17 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
 
   const handleAddExpense = async () => {
     if (!accountability) {
-      alert('Salve os dados iniciais do mês antes de adicionar despesas.');
+      toast.error('Salve os dados iniciais do mês antes de adicionar despesas.');
       return;
     }
 
     if (!expenseForm.description || expenseForm.amount <= 0) {
-      alert('Preencha a descrição e um valor válido.');
+      toast.error('Preencha a descrição e um valor válido.');
       return;
     }
 
+    setIsAddingExpense(true);
+    const loadingToast = toast.loading('Adicionando despesa...');
     try {
       const res = await fetchWithAuth(`/api/chacara/accountability/${accountability.id}/expenses`, {
         method: 'POST',
@@ -204,25 +217,35 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
           date: new Date().toISOString().split('T')[0],
           receipt_url: ''
         });
+        toast.success('Despesa adicionada com sucesso!', { id: loadingToast });
+      } else {
+        throw new Error('Erro ao adicionar');
       }
     } catch (error) {
       console.error('Error adding expense:', error);
-      alert('Erro ao adicionar despesa.');
+      toast.error('Erro ao adicionar despesa.', { id: loadingToast });
+    } finally {
+      setIsAddingExpense(false);
     }
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
     if (!accountability || !confirm('Deseja realmente excluir esta despesa?')) return;
 
+    const loadingToast = toast.loading('Excluindo despesa...');
     try {
       const res = await fetchWithAuth(`/api/chacara/accountability/${accountability.id}/expenses/${expenseId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
         fetchExpenses(accountability.id);
+        toast.success('Despesa excluída com sucesso!', { id: loadingToast });
+      } else {
+        throw new Error('Erro ao excluir');
       }
     } catch (error) {
       console.error('Error deleting expense:', error);
+      toast.error('Erro ao excluir despesa.', { id: loadingToast });
     }
   };
 
@@ -412,10 +435,11 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
 
               <button 
                 onClick={handleSaveAccountability}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                disabled={isSaving}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <CheckCircle size={20} />
-                Salvar Dados do Mês
+                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle size={20} />}
+                {isSaving ? 'Salvando...' : 'Salvar Dados do Mês'}
               </button>
             </div>
           </div>
@@ -707,10 +731,10 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
                 </button>
                 <button 
                   onClick={handleAddExpense}
-                  disabled={isUploading}
-                  className="w-full sm:flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+                  disabled={isAddingExpense || isUploading}
+                  className="w-full sm:flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Adicionar
+                  {isAddingExpense ? <Loader2 className="animate-spin" size={20} /> : 'Adicionar'}
                 </button>
               </div>
             </motion.div>
