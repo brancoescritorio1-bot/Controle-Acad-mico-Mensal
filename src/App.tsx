@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import MainApp from './MainApp';
-import { motion } from 'motion/react';
-import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -124,16 +122,5 @@ export default function App() {
     }
   };
 
-  return (
-    <>
-      <Toaster position="top-right" />
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <MainApp onLogout={handleLogout} session={session} supabaseClient={supabaseClient} />
-      </motion.div>
-    </>
-  );
+  return <MainApp onLogout={handleLogout} session={session} supabaseClient={supabaseClient} />;
 }

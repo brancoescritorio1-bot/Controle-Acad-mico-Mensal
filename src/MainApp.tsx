@@ -48,7 +48,8 @@ import {
   ListTodo,
   LayoutGrid,
   AlertCircle,
-  X
+  X,
+  BrainCircuit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -178,7 +179,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [chacaraBills, setChacaraBills] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState<Record<string, boolean>>({});
   const [settingsSubjectId, setSettingsSubjectId] = useState<string>('');
-  const [userPermissions, setUserPermissions] = useState<string[]>(['dashboard', 'academic', 'financial', 'chacara', 'work', 'personal']);
 
   const [settingsForm, setSettingsForm] = useState<Partial<Activities>>({});
 
@@ -363,39 +363,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     } catch (e) {
       console.error("Error fetching chacara bills:", e);
       setChacaraBills([]);
-    }
-  };
-
-  const fetchUserPermissions = async () => {
-    try {
-      const res = await fetchWithAuth('/api/user-permissions');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.allowed_tabs) {
-          setUserPermissions(data.allowed_tabs);
-        }
-      }
-    } catch (e) {
-      console.error("Error fetching user permissions:", e);
-    }
-  };
-
-  const saveUserPermissions = async (newPermissions: string[]) => {
-    try {
-      const res = await fetchWithAuth('/api/user-permissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ allowed_tabs: newPermissions })
-      });
-      if (res.ok) {
-        setUserPermissions(newPermissions);
-        alert('Permissões salvas com sucesso!');
-      } else {
-        alert('Erro ao salvar permissões.');
-      }
-    } catch (e) {
-      console.error("Error saving user permissions:", e);
-      alert('Erro ao salvar permissões.');
     }
   };
 
@@ -738,7 +705,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     fetchChacaraBills();
     fetchFinancialData();
     fetchClientInstallments();
-    fetchUserPermissions();
   }, []);
 
   useEffect(() => {
@@ -1213,11 +1179,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 activeModule === 'financial' ? "bg-emerald-600" : 
                 activeModule === 'chacara' ? "bg-amber-600" :
                 activeModule === 'personal' ? "bg-purple-600" : "bg-blue-600")}>
-                {activeModule === 'academic' ? <GraduationCap size={18} className="md:w-6 md:h-6" /> : 
-                 activeModule === 'financial' ? <Wallet size={18} className="md:w-6 md:h-6" /> : 
-                 activeModule === 'chacara' ? <Trees size={18} className="md:w-6 md:h-6" /> :
-                 activeModule === 'personal' ? <User size={18} className="md:w-6 md:h-6" /> :
-                 <Briefcase size={18} className="md:w-6 md:h-6" />}
+                <BrainCircuit size={18} className="md:w-6 md:h-6" />
               </div>
               <div>
                 <h1 className="font-bold text-base md:text-xl leading-tight text-gray-900 tracking-tight">
@@ -4788,54 +4750,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               {activeTab === 'work_safety' && (
                 <SafetyReportGenerator />
               )}
-
-              {activeTab === 'settings' && (
-                <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <Card title="Configurações de Acesso">
-                    <div className="space-y-6">
-                      <div>
-                        <h4 className="font-semibold text-gray-700 mb-2">Abas Visíveis</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          {['dashboard', 'academic', 'financial', 'chacara', 'work', 'personal'].map(tabId => (
-                            <label key={tabId} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                              <input 
-                                type="checkbox" 
-                                checked={userPermissions.includes(tabId)}
-                                onChange={(e) => {
-                                  const newPerms = e.target.checked 
-                                    ? [...userPermissions, tabId]
-                                    : userPermissions.filter(p => p !== tabId);
-                                  saveUserPermissions(newPerms);
-                                }}
-                                className="rounded text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <span className="capitalize text-sm text-gray-700">{tabId}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="border-t pt-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Gerador de Acesso</h4>
-                        <div className="space-y-3">
-                          <div className="p-3 bg-indigo-50 rounded-lg">
-                            <p className="text-xs text-indigo-800 font-medium">Senha Padrão Sugerida:</p>
-                            <p className="text-lg font-mono font-bold text-indigo-900">Organiza@2026</p>
-                          </div>
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-xs text-gray-600 font-medium mb-1">Mensagem Padrão:</p>
-                            <textarea 
-                              className="w-full text-sm text-gray-800 bg-transparent border-none focus:ring-0 p-0"
-                              rows={4}
-                              defaultValue={`Olá! Seu acesso ao sistema OrganizaAI foi liberado.\n\nUsuário: [seu e-mail]\nSenha: Organiza@2026\n\nAcesse em: https://organiza-ai.vercel.app`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              )}
             </motion.div>
           )}
 
@@ -4893,10 +4807,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         <div className="max-w-6xl mx-auto flex justify-between w-full">
           {activeModule === 'academic' ? (
             <>
-              {userPermissions.includes('dashboard') && <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />}
-              {userPermissions.includes('academic') && <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Users} label="Presença" />}
-              {userPermissions.includes('academic') && <TabButton active={activeTab === 'activities'} onClick={() => setActiveTab('activities')} icon={FileText} label="Notas" />}
-              {userPermissions.includes('academic') && <TabButton active={activeTab === 'web'} onClick={() => setActiveTab('web')} icon={MonitorPlay} label="Web" />}
+              <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />
+              <TabButton active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={Users} label="Presença" />
+              <TabButton active={activeTab === 'activities'} onClick={() => setActiveTab('activities')} icon={FileText} label="Notas" />
+              <TabButton active={activeTab === 'web'} onClick={() => setActiveTab('web')} icon={MonitorPlay} label="Web" />
               <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} label="Config" />
               <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={Shield} label="Usuários" />
             </>

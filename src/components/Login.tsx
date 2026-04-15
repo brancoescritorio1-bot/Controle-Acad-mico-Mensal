@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Mail, Lock, Loader2, AlertCircle, Trees } from 'lucide-react';
-import { motion } from 'motion/react';
 
 interface LoginProps {
   supabaseClient: SupabaseClient;
@@ -54,12 +53,7 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden"
-      >
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="p-8">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
@@ -69,8 +63,27 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">OrganizaAI</h1>
             <p className="text-gray-500">
-              {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta'}
+              {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta para começar'}
             </p>
+          </div>
+
+          <div className="flex mb-6 bg-gray-100 p-1 rounded-lg">
+            <button
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => { setIsLogin(true); setError(null); setMessage(null); }}
+            >
+              Entrar
+            </button>
+            <button
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                !isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => { setIsLogin(false); setError(null); setMessage(null); }}
+            >
+              Criar Conta
+            </button>
           </div>
 
           {error && (
@@ -119,9 +132,7 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
               </div>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -129,23 +140,12 @@ export function Login({ supabaseClient, onLoginSuccess }: LoginProps) {
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
-                isLogin ? 'Entrar' : 'Criar Conta'
+                isLogin ? 'Entrar' : 'Cadastrar'
               )}
-            </motion.button>
-            
-            <div className="text-center text-sm text-gray-600">
-              {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="ml-1 text-indigo-600 font-semibold hover:underline"
-              >
-                {isLogin ? 'Criar conta' : 'Entrar'}
-              </button>
-            </div>
+            </button>
           </form>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
