@@ -179,34 +179,37 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       ]);
 
       const processRes = async (res: Response, name: string) => {
-        if (!res.ok) return null;
+        if (!res.ok) {
+          console.error(`Error fetching ${name}:`, res.status);
+          return null;
+        }
         const text = await res.text();
         try {
           return JSON.parse(text);
         } catch (e) {
           console.error(`Error parsing JSON for ${name}. Status: ${res.status}. Text:`, text.substring(0, 100));
-          throw e;
+          return null;
         }
       };
 
-      const users = await processRes(usersRes, 'users');
-      if (users) setUsers(users);
+      const usersData = await processRes(usersRes, 'users');
+      if (usersData) setUsers(Array.isArray(usersData) ? usersData : []);
 
-      const bills = await processRes(billsRes, 'bills');
-      if (bills) setBills(bills);
+      const billsData = await processRes(billsRes, 'bills');
+      if (billsData) setBills(Array.isArray(billsData) ? billsData : []);
 
-      const exps = await processRes(expensesRes, 'expenses');
-      if (exps) setExpenses(exps);
+      const expsData = await processRes(expensesRes, 'expenses');
+      if (expsData) setExpenses(Array.isArray(expsData) ? expsData : []);
 
-      const s = await processRes(settingsRes, 'settings');
-      if (s) {
-        setSettings(s);
-        setSettingsForm(s);
+      const sData = await processRes(settingsRes, 'settings');
+      if (sData) {
+        setSettings(sData);
+        setSettingsForm(sData);
         
         // Apply default month reference if set and not editing
-        if (s.default_month_reference && !editingBill && !billForm.user_id) {
-           setBillForm(prev => ({ ...prev, month_reference: s.default_month_reference }));
-           setFilterMonth(s.default_month_reference);
+        if (sData.default_month_reference && !editingBill && !billForm.user_id) {
+           setBillForm(prev => ({ ...prev, month_reference: sData.default_month_reference }));
+           setFilterMonth(sData.default_month_reference);
         }
       }
     } catch (error) {
@@ -244,7 +247,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         if (onDataUpdate) onDataUpdate();
         dialogAlert(editingUser ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!');
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar usuário: ${errorData.message || JSON.stringify(errorData)}`);
       }
     } catch (error) {
@@ -256,11 +259,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const handleDeleteUser = async (id: number) => {
     if (!(await dialogConfirm('Deseja realmente excluir este usuário?'))) return;
     try {
-      await fetchWithAuth(`/api/chacara/users/${id}`, { method: 'DELETE' });
-      fetchData();
-      if (onDataUpdate) onDataUpdate();
+      const res = await fetchWithAuth(`/api/chacara/users/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchData();
+        if (onDataUpdate) onDataUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao excluir usuário: ${err.message || 'Erro desconhecido'}`);
+      }
     } catch (error) {
       console.error('Error deleting user:', error);
+      dialogAlert('Erro de conexão ao excluir usuário.');
     }
   };
 
@@ -357,7 +366,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     setEditingBill(null);
   };
 
-  const handleSaveBill = async (sendWhatsAppAfterSave: boolean = false) => {
+  const handleSaveBill = async () => {
     console.log('DEBUG: handleSaveBill - users:', users);
     console.log('DEBUG: handleSaveBill - billForm.user_id:', billForm.user_id);
     const user = users.find(u => u.id === Number(billForm.user_id));
@@ -439,17 +448,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         fetchData();
         if (onDataUpdate) onDataUpdate();
         
-        if (sendWhatsAppAfterSave) {
-          sendWhatsApp(savedBill);
-        } else {
-          dialogAlert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
-        }
+        dialogAlert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
         
-        if (wasEditing && setActiveTab) {
+        if (setActiveTab) {
           setActiveTab('chacara_history');
         }
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar conta: ${errorData.message || JSON.stringify(errorData)}`);
       }
     } catch (error) {
@@ -461,11 +466,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const handleDeleteBill = async (id: number) => {
     if (!(await dialogConfirm('Deseja realmente excluir este lançamento?'))) return;
     try {
-      await fetchWithAuth(`/api/chacara/bills/${id}`, { method: 'DELETE' });
-      fetchData();
-      if (onDataUpdate) onDataUpdate();
+      const res = await fetchWithAuth(`/api/chacara/bills/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchData();
+        if (onDataUpdate) onDataUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao excluir lançamento: ${err.message || 'Erro desconhecido'}`);
+      }
     } catch (error) {
       console.error('Error deleting bill:', error);
+      dialogAlert('Erro de conexão ao excluir lançamento.');
     }
   };
 
@@ -497,9 +508,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         setEditingExpense(null);
         fetchData();
         if (onDataUpdate) onDataUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao salvar despesa: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error saving expense:', error);
+      dialogAlert('Erro de conexão ao salvar despesa.');
     }
   };
 
@@ -510,9 +525,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       if (res.ok) {
         fetchData();
         if (onDataUpdate) onDataUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao excluir despesa: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error deleting expense:', error);
+      dialogAlert('Erro de conexão ao excluir despesa.');
     }
   };
 
@@ -783,9 +802,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       if (res.ok) {
         setSettings(settingsForm);
         dialogAlert('Configurações salvas!');
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao salvar configurações: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error saving settings:', error);
+      dialogAlert('Erro de conexão ao salvar configurações.');
     }
   };
 
@@ -1711,18 +1734,11 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                     <Trash2 size={20} />
                   </button>
                   <button 
-                    onClick={() => handleSaveBill(false)}
+                    onClick={() => handleSaveBill()}
                     className="flex-1 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"
                   >
                     {editingBill ? <Save size={20} /> : <Plus size={20} />}
                     {editingBill ? 'Atualizar Conta' : 'Lançar Conta'}
-                  </button>
-                  <button 
-                    onClick={() => handleSaveBill(true)}
-                    className="flex-1 px-6 py-4 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
-                  >
-                    <MessageCircle size={20} />
-                    Salvar e Enviar
                   </button>
                 </div>
               </div>

@@ -27,10 +27,14 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
       const res = await fetchWithAuth('/api/finance/responsibles');
       if (res.ok) {
         const data = await res.json();
-        setResponsibles(data);
+        setResponsibles(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Error fetching responsibles:', res.status);
+        setResponsibles([]);
       }
     } catch (error) {
       console.error('Error fetching responsibles:', error);
+      setResponsibles([]);
     }
   };
 
@@ -47,6 +51,9 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
         setNewName('');
         fetchResponsibles();
         onUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        console.error('Error adding responsible:', err);
       }
     } catch (error) {
       console.error('Error adding responsible:', error);
@@ -66,6 +73,9 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
       if (res.ok) {
         fetchResponsibles();
         onUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        console.error('Error deleting responsible:', err);
       }
     } catch (error) {
       console.error('Error deleting responsible:', error);
@@ -73,7 +83,7 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
   };
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm">
+    <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
       <h3 className="text-base md:text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
         <User size={20} className="text-indigo-600" />
         Gerenciar Responsáveis

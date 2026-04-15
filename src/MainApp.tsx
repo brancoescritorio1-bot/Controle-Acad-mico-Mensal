@@ -304,7 +304,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       if (res.ok) {
         fetchDashboard();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
@@ -315,10 +315,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchPeriods = async () => {
     try {
       const res = await fetchWithAuth('/api/periods');
-      const data = await res.json();
-      setPeriods(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setPeriods(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchPeriods:", res.status, await res.text().catch(()=>''));
+        setPeriods([]);
+      }
     } catch (e) {
-      console.error("Error fetching periods:", e);
+      console.error("Error fetching in fetchPeriods:", e);
       setPeriods([]);
     }
   };
@@ -326,10 +331,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchSubjects = async () => {
     try {
       const res = await fetchWithAuth('/api/subjects');
-      const data = await res.json();
-      setSubjects(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setSubjects(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchSubjects:", res.status, await res.text().catch(()=>''));
+        setSubjects([]);
+      }
     } catch (e) {
-      console.error("Error fetching subjects:", e);
+      console.error("Error fetching in fetchSubjects:", e);
       setSubjects([]);
     }
   };
@@ -348,9 +358,14 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchDashboard = async () => {
     try {
       const res = await fetchWithAuth('/api/dashboard');
-      const data = await res.json();
-      const dashboardArray = Array.isArray(data) ? data : [];
-      setDashboardData(dashboardArray);
+      if (res.ok) {
+        const data = await res.json();
+        const dashboardArray = Array.isArray(data) ? data : [];
+        setDashboardData(dashboardArray);
+      } else {
+        console.error("Error in fetchDashboard:", res.status, await res.text().catch(()=>''));
+        setDashboardData([]);
+      }
     } catch (e) {
       console.error("Error fetching dashboard:", e);
       setDashboardData([]);
@@ -360,10 +375,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchChacaraBills = async () => {
     try {
       const res = await fetchWithAuth('/api/chacara/bills');
-      const data = await res.json();
-      setChacaraBills(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setChacaraBills(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchChacaraBills:", res.status, await res.text().catch(()=>''));
+        setChacaraBills([]);
+      }
     } catch (e) {
-      console.error("Error fetching chacara bills:", e);
+      console.error("Error fetching in fetchChacaraBills:", e);
       setChacaraBills([]);
     }
   };
@@ -405,10 +425,12 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         fetchWithAuth(`/api/finance/dashboard${query}`)
       ]);
       
-      const cats = await catRes.json();
-      const accs = await accRes.json();
-      const trans = await transRes.json();
-      const dash = await dashRes.json();
+      let cats = [], accs = [], trans = [], dash = null;
+
+      if (catRes.ok) cats = await catRes.json();
+      if (accRes.ok) accs = await accRes.json();
+      if (transRes.ok) trans = await transRes.json();
+      if (dashRes.ok) dash = await dashRes.json();
 
       setFinCategories(Array.isArray(cats) ? cats : []);
       setFinAccounts(Array.isArray(accs) ? accs : []);
@@ -434,8 +456,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchPersonalTasks = async () => {
     try {
       const res = await fetchWithAuth('/api/personal/tasks');
-      const data = await res.json();
-      setPersonalTasks(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setPersonalTasks(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchPersonalTasks:", res.status, await res.text().catch(()=>''));
+        setPersonalTasks([]);
+      }
     } catch (e) {
       console.error("Error fetching personal tasks:", e);
     }
@@ -444,8 +471,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchClients = async () => {
     try {
       const res = await fetchWithAuth('/api/clients');
-      const data = await res.json();
-      setClients(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setClients(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchClients:", res.status, await res.text().catch(()=>''));
+        setClients([]);
+      }
     } catch (e) {
       console.error("Error fetching clients:", e);
     }
@@ -454,8 +486,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const fetchClientSales = async () => {
     try {
       const res = await fetchWithAuth('/api/client-sales');
-      const data = await res.json();
-      setClientSales(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setClientSales(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchClientSales:", res.status, await res.text().catch(()=>''));
+        setClientSales([]);
+      }
     } catch (e) {
       console.error("Error fetching client sales:", e);
     }
@@ -465,8 +502,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     try {
       const query = `?month=${finFilter.month}&year=${finFilter.year}`;
       const res = await fetchWithAuth(`/api/client-installments${query}`);
-      const data = await res.json();
-      setClientInstallments(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setClientInstallments(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Error in fetchClientInstallments:", res.status, await res.text().catch(()=>''));
+        setClientInstallments([]);
+      }
     } catch (e) {
       console.error("Error fetching client installments:", e);
     }
@@ -607,7 +649,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       }
       
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar lançamento: ${err.message || err.error || JSON.stringify(err)}`);
         return;
       }
@@ -717,9 +759,11 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           fetchWithAuth(`/api/activities/${selectedSubjectId}`),
           fetchWithAuth(`/api/web_contents/${selectedSubjectId}`)
         ]);
-        const attData = await attRes.json();
-        const actData = await actRes.json();
-        const webData = await webRes.json();
+        
+        let attData: any = {}, actData: any = {}, webData: any = [];
+        if (attRes.ok) attData = await attRes.json();
+        if (actRes.ok) actData = await actRes.json();
+        if (webRes.ok) webData = await webRes.json();
         
         setAttendanceForm(attData);
         setActivitiesForm(actData);
@@ -796,7 +840,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         fetchSubjects();
         fetchDashboard();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar matéria: ${err.error || err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
@@ -824,7 +868,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         setEditingPeriod(null);
         fetchPeriods();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar período: ${err.error || err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
@@ -839,7 +883,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       try {
         const res = await fetchWithAuth(`/api/periods/${id}`, { method: 'DELETE' });
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ message: res.statusText }));
           dialogAlert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
         } else {
           fetchPeriods();
@@ -862,7 +906,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       try {
         const res = await fetchWithAuth(`/api/subjects/${id}`, { method: 'DELETE' });
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ message: res.statusText }));
           dialogAlert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
         } else {
           fetchSubjects();
@@ -889,7 +933,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         body: JSON.stringify(payload)
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         console.error("Error auto-saving:", err);
         dialogAlert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
       } else {
@@ -2225,7 +2269,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                       const id = e.target.value;
                       setSettingsSubjectId(id);
                       if (id) {
-                        fetchWithAuth(`/api/activities/${id}`).then(res => res.json()).then(data => {
+                        fetchWithAuth(`/api/activities/${id}`).then(res => {
+                          if (res.ok) return res.json();
+                          throw new Error('Failed to fetch activity');
+                        }).then(data => {
                           setSettingsForm(data);
                           
                           // Initialize editing state
@@ -3630,7 +3677,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                       newSplits[index].name = name.trim();
                                       setFinTransactionForm({ ...finTransactionForm, splits: newSplits });
                                     } else {
-                                      const err = await res.json();
+                                      const err = await res.json().catch(() => ({ message: res.statusText }));
                                       dialogAlert(err.message || 'Erro ao adicionar responsável');
                                     }
                                   } catch (error) {
@@ -3824,8 +3871,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                     if (await dialogConfirm('Deseja verificar e configurar as tabelas do banco de dados?')) {
                       try {
                         const res = await fetchWithAuth('/api/setup-finance', { method: 'POST' });
-                        const data = await res.json();
-                        dialogAlert(data.message);
+                        if (res.ok) {
+                          const data = await res.json();
+                          dialogAlert(data.message);
+                        } else {
+                          const err = await res.json().catch(() => ({ message: res.statusText }));
+                          dialogAlert(`Erro: ${err.message || 'Falha na configuração'}`);
+                        }
                       } catch (e) {
                         dialogAlert('Erro ao conectar com o servidor.');
                       }

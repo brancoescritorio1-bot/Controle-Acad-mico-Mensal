@@ -71,10 +71,14 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       const res = await fetchWithAuth(`/api/chacara/bills`);
       if (res.ok) {
         const data = await res.json();
-        setBills(data.filter((b: ChacaraBill) => b.month_reference === monthReference));
+        setBills(Array.isArray(data) ? data.filter((b: ChacaraBill) => b.month_reference === monthReference) : []);
+      } else {
+        console.error('Error fetching bills:', res.status);
+        setBills([]);
       }
     } catch (error) {
       console.error('Error fetching bills:', error);
+      setBills([]);
     }
   };
 
@@ -105,9 +109,15 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
             water_bill_value: 0
           });
         }
+      } else {
+        console.error('Error fetching accountability:', res.status);
+        setAccountability(null);
+        setExpenses([]);
       }
     } catch (error) {
       console.error('Error fetching accountability:', error);
+      setAccountability(null);
+      setExpenses([]);
     } finally {
       setLoading(false);
     }
@@ -118,10 +128,14 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       const res = await fetchWithAuth(`/api/chacara/accountability/${id}/expenses`);
       if (res.ok) {
         const data = await res.json();
-        setExpenses(data);
+        setExpenses(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Error fetching expenses:', res.status);
+        setExpenses([]);
       }
     } catch (error) {
       console.error('Error fetching expenses:', error);
+      setExpenses([]);
     }
   };
 
@@ -138,6 +152,9 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
         const data = await res.json();
         setAccountability(data);
         dialogAlert('Dados salvos com sucesso!');
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao salvar dados: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error saving accountability:', error);

@@ -206,7 +206,7 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
         setExpenseForm({ description: '', category: 'geral', amount: '', date: new Date().toISOString().slice(0, 10), receipt_url: '' });
         if (onUpdate) onUpdate();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ message: res.statusText }));
         let errorMessage = err.message || err.error || JSON.stringify(err);
         if (errorMessage.includes('relation "chacara_expenses" does not exist') || errorMessage.includes("A tabela 'chacara_expenses' não existe")) {
           errorMessage = 'A tabela "chacara_expenses" não existe no banco de dados. Por favor, crie-a no Supabase com as colunas: id, accountability_id, description, category, amount, date, receipt_url.';
@@ -231,9 +231,13 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
       });
       if (res.ok) {
         if (onUpdate) onUpdate();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        dialogAlert(`Erro ao excluir despesa: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error deleting expense:', error);
+      dialogAlert('Erro de conexão ao excluir despesa.');
     }
   };
 
