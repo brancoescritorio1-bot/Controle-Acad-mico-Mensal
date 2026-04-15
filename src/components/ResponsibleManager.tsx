@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, User } from 'lucide-react';
+import { useDialog } from './DialogContext';
 
 interface Responsible {
   id: number;
@@ -12,6 +13,7 @@ interface ResponsibleManagerProps {
 }
 
 export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManagerProps) {
+  const { confirm: dialogConfirm } = useDialog();
   const [responsibles, setResponsibles] = useState<Responsible[]>([]);
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,7 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir este responsável?')) return;
+    if (!(await dialogConfirm('Tem certeza que deseja excluir este responsável?'))) return;
     
     try {
       const res = await fetchWithAuth(`/api/finance/responsibles/${id}`, {

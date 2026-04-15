@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
+import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -40,6 +41,7 @@ interface ChacaraManagerProps {
 }
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
+  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -214,7 +216,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const handleSaveUser = async () => {
     if (!userForm.name || !userForm.phone) {
-      alert('Nome e telefone são obrigatórios.');
+      dialogAlert('Nome e telefone são obrigatórios.');
       return;
     }
 
@@ -240,19 +242,19 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         setEditingUser(null);
         await fetchData();
         if (onDataUpdate) onDataUpdate();
-        alert(editingUser ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!');
+        dialogAlert(editingUser ? 'Usuário atualizado com sucesso!' : 'Usuário cadastrado com sucesso!');
       } else {
         const errorData = await res.json();
-        alert(`Erro ao salvar usuário: ${errorData.message || JSON.stringify(errorData)}`);
+        dialogAlert(`Erro ao salvar usuário: ${errorData.message || JSON.stringify(errorData)}`);
       }
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Erro ao salvar usuário. Verifique o console para mais detalhes.');
+      dialogAlert('Erro ao salvar usuário. Verifique o console para mais detalhes.');
     }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm('Deseja realmente excluir este usuário?')) return;
+    if (!(await dialogConfirm('Deseja realmente excluir este usuário?'))) return;
     try {
       await fetchWithAuth(`/api/chacara/users/${id}`, { method: 'DELETE' });
       fetchData();
@@ -323,7 +325,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         water_readings: waterReadings
       });
     } else {
-      alert('Usuário não encontrado.');
+      dialogAlert('Usuário não encontrado.');
     }
   };
 
@@ -364,17 +366,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const hasWater = user ? (user.has_water !== false && user.water_active !== false) : true;
 
     if (!billForm.user_id) {
-      alert('Selecione um usuário.');
+      dialogAlert('Selecione um usuário.');
       return;
     }
 
     if (hasEnergy && (!billForm.energy_readings || billForm.energy_readings.length === 0 || billForm.energy_readings[0].curr === undefined || billForm.energy_readings[0].curr === null)) {
-      alert('Leitura atual de energia é obrigatória.');
+      dialogAlert('Leitura atual de energia é obrigatória.');
       return;
     }
 
     if (hasWater && (!billForm.water_readings || billForm.water_readings.length === 0 || billForm.water_readings[0].curr === undefined || billForm.water_readings[0].curr === null)) {
-      alert('Leitura atual de água é obrigatória.');
+      dialogAlert('Leitura atual de água é obrigatória.');
       return;
     }
 
@@ -384,13 +386,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     // Validation
     for (let i = 0; i < billForm.energy_readings.length; i++) {
       if (hasEnergy && billForm.energy_readings[i].curr < billForm.energy_readings[i].prev) {
-        alert(`A leitura atual de energia (Padrão ${i + 1}) não pode ser menor que a anterior.`);
+        dialogAlert(`A leitura atual de energia (Padrão ${i + 1}) não pode ser menor que a anterior.`);
         return;
       }
     }
     for (let i = 0; i < billForm.water_readings.length; i++) {
       if (hasWater && billForm.water_readings[i].curr < billForm.water_readings[i].prev) {
-        alert(`A leitura atual de água (Hidrômetro ${i + 1}) não pode ser menor que a anterior.`);
+        dialogAlert(`A leitura atual de água (Hidrômetro ${i + 1}) não pode ser menor que a anterior.`);
         return;
       }
     }
@@ -440,7 +442,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         if (sendWhatsAppAfterSave) {
           sendWhatsApp(savedBill);
         } else {
-          alert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
+          dialogAlert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
         }
         
         if (wasEditing && setActiveTab) {
@@ -448,16 +450,16 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         }
       } else {
         const errorData = await res.json();
-        alert(`Erro ao salvar conta: ${errorData.message || JSON.stringify(errorData)}`);
+        dialogAlert(`Erro ao salvar conta: ${errorData.message || JSON.stringify(errorData)}`);
       }
     } catch (error) {
       console.error('Error saving bill:', error);
-      alert('Erro ao salvar conta. Verifique o console para mais detalhes.');
+      dialogAlert('Erro ao salvar conta. Verifique o console para mais detalhes.');
     }
   };
 
   const handleDeleteBill = async (id: number) => {
-    if (!confirm('Deseja realmente excluir este lançamento?')) return;
+    if (!(await dialogConfirm('Deseja realmente excluir este lançamento?'))) return;
     try {
       await fetchWithAuth(`/api/chacara/bills/${id}`, { method: 'DELETE' });
       fetchData();
@@ -469,7 +471,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const handleSaveExpense = async () => {
     if (!expenseForm.description || !expenseForm.amount) {
-      alert('Preencha a descrição e o valor da despesa.');
+      dialogAlert('Preencha a descrição e o valor da despesa.');
       return;
     }
 
@@ -502,7 +504,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   };
 
   const handleDeleteExpense = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta despesa?')) return;
+    if (!(await dialogConfirm('Tem certeza que deseja excluir esta despesa?'))) return;
     try {
       const res = await fetchWithAuth(`/api/chacara/expenses/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -535,7 +537,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     if (!file) return;
 
     if (file.size > 50 * 1024 * 1024) {
-      alert('O arquivo deve ter no máximo 50MB.');
+      dialogAlert('O arquivo deve ter no máximo 50MB.');
       return;
     }
 
@@ -675,11 +677,11 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       } else {
         const errorData = await res.json().catch(() => ({}));
         console.error('API Error:', errorData);
-        alert(`Erro ao salvar o pagamento. Se você ainda não executou o comando SQL no Supabase, por favor execute:\n\nALTER TABLE chacara_bills ADD COLUMN IF NOT EXISTS amount_paid NUMERIC DEFAULT 0;\n\nDetalhes do erro: ${errorData.message || errorData.details || 'Erro desconhecido'}`);
+        dialogAlert(`Erro ao salvar o pagamento. Se você ainda não executou o comando SQL no Supabase, por favor execute:\n\nALTER TABLE chacara_bills ADD COLUMN IF NOT EXISTS amount_paid NUMERIC DEFAULT 0;\n\nDetalhes do erro: ${errorData.message || errorData.details || 'Erro desconhecido'}`);
       }
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('Erro de conexão ao tentar salvar o pagamento.');
+      dialogAlert('Erro de conexão ao tentar salvar o pagamento.');
     }
   };
 
@@ -780,7 +782,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
       if (res.ok) {
         setSettings(settingsForm);
-        alert('Configurações salvas!');
+        dialogAlert('Configurações salvas!');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -793,7 +795,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const user = users.find(u => u.id === Number(bill.chacara_user_id));
     console.log('DEBUG: sendWhatsApp - found user:', user);
     if (!user) {
-      alert(`Usuário não encontrado para este lançamento. ID procurado: ${bill.chacara_user_id}`);
+      dialogAlert(`Usuário não encontrado para este lançamento. ID procurado: ${bill.chacara_user_id}`);
       return;
     }
 

@@ -3,6 +3,7 @@ import { Wallet, TrendingUp, Droplets, Zap, Building2, Briefcase, Users, Downloa
 import { ChacaraBill } from '../types';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
+import { useDialog } from './DialogContext';
 
 interface ChacaraFinanceDashboardProps {
   bills: ChacaraBill[];
@@ -14,6 +15,7 @@ interface ChacaraFinanceDashboardProps {
 }
 
 export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = ({ bills, expenses = [], onUpdate, fetchWithAuth, filterMonth, setFilterMonth }) => {
+  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -172,7 +174,7 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
       pdf.save(`Dashboard_Chacara_${filterMonth}.pdf`);
     } catch (error: any) {
       console.error('Erro ao exportar o dashboard:', error);
-      alert(`Ocorreu um erro ao tentar exportar o dashboard: ${error.message || error}. Tente novamente.`);
+      dialogAlert(`Ocorreu um erro ao tentar exportar o dashboard: ${error.message || error}. Tente novamente.`);
     }
   };
 
@@ -211,18 +213,18 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
         } else if (errorMessage.includes('relation "chacara_accountability" does not exist') || errorMessage.includes("A tabela 'chacara_accountability' não existe")) {
           errorMessage = 'A tabela "chacara_accountability" não existe no banco de dados. Por favor, crie-a no Supabase com as colunas: id, user_id, month_reference.';
         }
-        alert(`Erro ao adicionar despesa:\n\n${errorMessage}`);
+        dialogAlert(`Erro ao adicionar despesa:\n\n${errorMessage}`);
       }
     } catch (error) {
       console.error('Error adding expense:', error);
-      alert('Erro de conexão ao adicionar despesa.');
+      dialogAlert('Erro de conexão ao adicionar despesa.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteExpense = async (id: number) => {
-    if (!confirm('Deseja realmente excluir esta despesa?')) return;
+    if (!(await dialogConfirm('Deseja realmente excluir esta despesa?'))) return;
     try {
       const res = await fetchWithAuth(`/api/chacara/expenses/${id}`, {
         method: 'DELETE'
@@ -240,7 +242,7 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('O arquivo é muito grande. O tamanho máximo permitido é 5MB.');
+      dialogAlert('O arquivo é muito grande. O tamanho máximo permitido é 5MB.');
       e.target.value = '';
       return;
     }

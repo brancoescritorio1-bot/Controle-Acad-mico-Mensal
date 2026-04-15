@@ -147,8 +147,10 @@ import { ResponsibleManager } from './components/ResponsibleManager';
 import { ChacaraManager } from './components/ChacaraManager';
 import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
 import { SafetyReportGenerator } from './components/SafetyReportGenerator';
+import { useDialog } from './components/DialogContext';
 
 export default function MainApp({ onLogout, session, supabaseClient }: { onLogout: () => void, session: Session | null, supabaseClient: SupabaseClient | null }) {
+  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -303,10 +305,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         fetchDashboard();
       } else {
         const err = await res.json();
-        alert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
+        dialogAlert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
-      alert("Erro de conexão ao salvar.");
+      dialogAlert("Erro de conexão ao salvar.");
     }
   };
 
@@ -550,7 +552,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   };
 
   const handleDeleteFinCategory = async (id: number) => {
-    if (!confirm('Tem certeza?')) return;
+    if (!(await dialogConfirm('Tem certeza?'))) return;
     await fetchWithAuth(`/api/finance/categories/${id}`, { method: 'DELETE' });
     fetchFinancialData();
   };
@@ -584,7 +586,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   };
 
   const handleDeleteFinAccount = async (id: number) => {
-    if (!confirm('Tem certeza?')) return;
+    if (!(await dialogConfirm('Tem certeza?'))) return;
     await fetchWithAuth(`/api/finance/accounts/${id}`, { method: 'DELETE' });
     fetchFinancialData();
   };
@@ -606,7 +608,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       
       if (!res.ok) {
         const err = await res.json();
-        alert(`Erro ao salvar lançamento: ${err.message || err.error || JSON.stringify(err)}`);
+        dialogAlert(`Erro ao salvar lançamento: ${err.message || err.error || JSON.stringify(err)}`);
         return;
       }
 
@@ -626,7 +628,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       fetchFinancialData();
     } catch (e) {
       console.error("Error saving transaction:", e);
-      alert("Erro de conexão ao salvar lançamento.");
+      dialogAlert("Erro de conexão ao salvar lançamento.");
     }
   };
 
@@ -650,7 +652,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   };
 
   const handleDeleteClientInstallment = async (id: number) => {
-    if (!confirm('Tem certeza que deseja apagar esta parcela?')) return;
+    if (!(await dialogConfirm('Tem certeza que deseja apagar esta parcela?'))) return;
     try {
       await fetchWithAuth(`/api/client-installments/${id}`, { method: 'DELETE' });
       fetchClientInstallments();
@@ -660,7 +662,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   };
 
   const handleDeleteFinTransaction = async (id: number) => {
-    if (!confirm('Tem certeza?')) return;
+    if (!(await dialogConfirm('Tem certeza?'))) return;
     await fetchWithAuth(`/api/finance/transactions/${id}`, { method: 'DELETE' });
     fetchFinancialData();
   };
@@ -754,7 +756,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
   const handleSaveSubject = async () => {
     if (!subjectForm.period_id) {
-      alert('Por favor, selecione um período.');
+      dialogAlert('Por favor, selecione um período.');
       return;
     }
 
@@ -767,7 +769,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     );
 
     if (isDuplicate) {
-      alert("Já existe uma matéria cadastrada para este mês e período.");
+      dialogAlert("Já existe uma matéria cadastrada para este mês e período.");
       return;
     }
 
@@ -795,10 +797,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         fetchDashboard();
       } else {
         const err = await res.json();
-        alert(`Erro ao salvar matéria: ${err.error || err.message || 'Erro desconhecido'}`);
+        dialogAlert(`Erro ao salvar matéria: ${err.error || err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
-      alert("Erro de conexão ao salvar matéria.");
+      dialogAlert("Erro de conexão ao salvar matéria.");
     } finally {
       setLoading(false);
     }
@@ -823,29 +825,29 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         fetchPeriods();
       } else {
         const err = await res.json();
-        alert(`Erro ao salvar período: ${err.error || err.message || 'Erro desconhecido'}`);
+        dialogAlert(`Erro ao salvar período: ${err.error || err.message || 'Erro desconhecido'}`);
       }
     } catch (e) {
-      alert("Erro de conexão ao salvar período.");
+      dialogAlert("Erro de conexão ao salvar período.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeletePeriod = async (id: number) => {
-    if (confirm('Deseja realmente excluir este período? Isso pode afetar matérias vinculadas.')) {
+    if (await dialogConfirm('Deseja realmente excluir este período? Isso pode afetar matérias vinculadas.')) {
       try {
         const res = await fetchWithAuth(`/api/periods/${id}`, { method: 'DELETE' });
         if (!res.ok) {
           const err = await res.json();
-          alert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
+          dialogAlert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
         } else {
           fetchPeriods();
           fetchSubjects();
           fetchDashboard();
         }
       } catch (e) {
-        alert("Erro de conexão ao excluir.");
+        dialogAlert("Erro de conexão ao excluir.");
       }
     }
   };
@@ -856,18 +858,18 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       ? 'Esta matéria já possui lançamentos. Deseja realmente excluir?' 
       : 'Deseja realmente excluir este mês/matéria?';
     
-    if (confirm(msg)) {
+    if (await dialogConfirm(msg)) {
       try {
         const res = await fetchWithAuth(`/api/subjects/${id}`, { method: 'DELETE' });
         if (!res.ok) {
           const err = await res.json();
-          alert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
+          dialogAlert(`Erro ao excluir: ${err.message || 'Erro desconhecido'}`);
         } else {
           fetchSubjects();
           fetchDashboard();
         }
       } catch (e) {
-        alert("Erro de conexão ao excluir.");
+        dialogAlert("Erro de conexão ao excluir.");
       }
     }
   };
@@ -889,13 +891,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       if (!res.ok) {
         const err = await res.json();
         console.error("Error auto-saving:", err);
-        alert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
+        dialogAlert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
       } else {
         fetchDashboard();
       }
     } catch (e) {
       console.error("Network error auto-saving:", e);
-      alert("Erro de conexão ao salvar.");
+      dialogAlert("Erro de conexão ao salvar.");
     }
   }, [selectedSubjectId]);
 
@@ -942,9 +944,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     } else if (activeModule === 'financial' && activeTab === 'fin_credit') {
       const btn = document.getElementById('btn-export-fin-credit');
       if (btn) btn.click();
-      else alert('Não há relatório em PDF disponível para exportar nesta aba.');
+      else dialogAlert('Não há relatório em PDF disponível para exportar nesta aba.');
     } else {
-      alert('Não há relatório em PDF disponível para exportar nesta aba.');
+      dialogAlert('Não há relatório em PDF disponível para exportar nesta aba.');
     }
   };
 
@@ -3629,11 +3631,11 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                       setFinTransactionForm({ ...finTransactionForm, splits: newSplits });
                                     } else {
                                       const err = await res.json();
-                                      alert(err.message || 'Erro ao adicionar responsável');
+                                      dialogAlert(err.message || 'Erro ao adicionar responsável');
                                     }
                                   } catch (error) {
                                     console.error('Error adding responsible:', error);
-                                    alert('Erro de conexão ao adicionar responsável');
+                                    dialogAlert('Erro de conexão ao adicionar responsável');
                                   }
                                 }
                               } else {
@@ -3819,13 +3821,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               <div className="mb-6 flex justify-end">
                 <button 
                   onClick={async () => {
-                    if (confirm('Deseja verificar e configurar as tabelas do banco de dados?')) {
+                    if (await dialogConfirm('Deseja verificar e configurar as tabelas do banco de dados?')) {
                       try {
                         const res = await fetchWithAuth('/api/setup-finance', { method: 'POST' });
                         const data = await res.json();
-                        alert(data.message);
+                        dialogAlert(data.message);
                       } catch (e) {
-                        alert('Erro ao conectar com o servidor.');
+                        dialogAlert('Erro ao conectar com o servidor.');
                       }
                     }
                   }}
@@ -4048,7 +4050,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                           <button 
                             onClick={async () => {
                               if (!personalTaskForm.title) {
-                                alert('Preencha o título da tarefa.');
+                                dialogAlert('Preencha o título da tarefa.');
                                 return;
                               }
                               await handleSavePersonalTask();
@@ -4393,7 +4395,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                           <button 
                             onClick={async () => {
                               if (!clientForm.name || !clientForm.phone) {
-                                alert('Nome e Telefone são obrigatórios.');
+                                dialogAlert('Nome e Telefone são obrigatórios.');
                                 return;
                               }
                               try {
@@ -4476,7 +4478,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                     setClientForm({ name: client.name, phone: client.phone || '' });
                                   }} className="p-1 text-gray-400 hover:text-indigo-600"><Edit2 size={14} /></button>
                                   <button onClick={async () => {
-                                    if (confirm('Excluir cliente?')) {
+                                    if (await dialogConfirm('Excluir cliente?')) {
                                       await fetchWithAuth(`/api/clients/${client.id}`, { method: 'DELETE' });
                                       fetchClients();
                                     }
@@ -4558,10 +4560,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                 });
                                 fetchClientSales();
                                 fetchClientInstallments();
-                                alert('Venda registrada com sucesso!');
+                                dialogAlert('Venda registrada com sucesso!');
                               } catch (e) {
                                 console.error(e);
-                                alert('Erro ao registrar venda.');
+                                dialogAlert('Erro ao registrar venda.');
                               }
                             }}
                             className="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition-colors"

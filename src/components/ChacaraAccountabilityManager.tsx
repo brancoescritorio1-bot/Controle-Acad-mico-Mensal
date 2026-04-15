@@ -5,6 +5,7 @@ import { ChacaraAccountability, ChacaraExpense, ChacaraBill } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { useDialog } from './DialogContext';
 
 interface ChacaraAccountabilityManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -12,6 +13,7 @@ interface ChacaraAccountabilityManagerProps {
 }
 
 export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManagerProps> = ({ fetchWithAuth, supabaseClient }) => {
+  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
   const [monthReference, setMonthReference] = useState(new Date().toISOString().slice(0, 7));
   const [accountability, setAccountability] = useState<ChacaraAccountability | null>(null);
   const [expenses, setExpenses] = useState<ChacaraExpense[]>([]);
@@ -135,11 +137,11 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       if (res.ok) {
         const data = await res.json();
         setAccountability(data);
-        alert('Dados salvos com sucesso!');
+        dialogAlert('Dados salvos com sucesso!');
       }
     } catch (error) {
       console.error('Error saving accountability:', error);
-      alert('Erro ao salvar dados.');
+      dialogAlert('Erro ao salvar dados.');
     }
   };
 
@@ -148,7 +150,7 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
     if (!file) return;
 
     if (!supabaseClient) {
-      alert('Cliente Supabase não inicializado. Tente novamente em instantes.');
+      dialogAlert('Cliente Supabase não inicializado. Tente novamente em instantes.');
       return;
     }
 
@@ -171,7 +173,7 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       setExpenseForm(prev => ({ ...prev, receipt_url: data.publicUrl }));
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Erro ao fazer upload do arquivo.');
+      dialogAlert('Erro ao fazer upload do arquivo.');
     } finally {
       setIsUploading(false);
     }
@@ -179,12 +181,12 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
 
   const handleAddExpense = async () => {
     if (!accountability) {
-      alert('Salve os dados iniciais do mês antes de adicionar despesas.');
+      dialogAlert('Salve os dados iniciais do mês antes de adicionar despesas.');
       return;
     }
 
     if (!expenseForm.description || expenseForm.amount <= 0) {
-      alert('Preencha a descrição e um valor válido.');
+      dialogAlert('Preencha a descrição e um valor válido.');
       return;
     }
 
@@ -207,12 +209,13 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
       }
     } catch (error) {
       console.error('Error adding expense:', error);
-      alert('Erro ao adicionar despesa.');
+      dialogAlert('Erro ao adicionar despesa.');
     }
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
-    if (!accountability || !confirm('Deseja realmente excluir esta despesa?')) return;
+    if (!accountability) return;
+    if (!(await dialogConfirm('Deseja realmente excluir esta despesa?'))) return;
 
     try {
       const res = await fetchWithAuth(`/api/chacara/accountability/${accountability.id}/expenses/${expenseId}`, {
