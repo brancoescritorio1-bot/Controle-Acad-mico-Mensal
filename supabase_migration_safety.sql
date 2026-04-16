@@ -4,6 +4,11 @@ CREATE TABLE IF NOT EXISTS safety_reports (
   user_id UUID NOT NULL,
   report_number TEXT NOT NULL,
   location TEXT NOT NULL,
+  supervisor TEXT,
+  status TEXT DEFAULT 'pending',
+  completed_at TIMESTAMP WITH TIME ZONE,
+  logo_1 TEXT, -- Base64 or URL
+  logo_2 TEXT, -- Base64 or URL
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -16,7 +21,7 @@ CREATE TABLE IF NOT EXISTS safety_non_conformities (
   normative_items TEXT NOT NULL,
   classification TEXT NOT NULL,
   due_date DATE,
-  image_data TEXT, -- Can store base64 or URL
+  images JSONB DEFAULT '[]'::jsonb, -- Store array of base64 or URLs
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 

@@ -1738,6 +1738,162 @@ app.get("/api/config", (req, res) => {
     }
   });
 
+  // Safety Reports
+  app.get("/api/safety/reports", async (req, res) => {
+    const user = (req as any).user;
+    const { data, error } = await supabase
+      .from("safety_reports")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching safety reports:", error.message);
+      return res.status(500).json(error);
+    }
+    res.json(data || []);
+  });
+
+  app.get("/api/safety/reports/:id/non-conformities", async (req, res) => {
+    const user = (req as any).user;
+    const { id } = req.params;
+
+    // Verify ownership
+    const { data: report, error: rError } = await supabase
+      .from("safety_reports")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (rError || !report) {
+      return res.status(403).json({ error: "Unauthorized or not found" });
+    }
+
+    const { data, error } = await supabase
+      .from("safety_non_conformities")
+      .select("*")
+      .eq("report_id", id)
+      .order("created_at", { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching non-conformities:", error.message);
+      return res.status(500).json(error);
+    }
+    res.json(data || []);
+  });
+
+  app.post("/api/safety/reports", async (req, res) => {
+    const user = (req as any).user;
+    const { report_number, location, supervisor, logo_1, logo_2, non_conformities } = req.body;
+
+    const { data: report, error: rError } = await supabase
+      .from("safety_reports")
+      .insert([{ 
+        user_id: user.id, 
+        report_number, 
+        location, 
+        supervisor,
+        logo_1,
+        logo_2,
+        status: 'pending'
+      }])
+      .select()
+      .single();
+
+    if (rError) {
+      console.error("Error creating safety report:", rError.message);
+      return res.status(500).json(rError);
+    }
+
+    if (non_conformities && non_conformities.length > 0) {
+      const ncs = non_conformities.map((nc: any) => ({
+        report_id: report.id,
+        description: nc.description,
+        suggestion: nc.suggestion,
+        normative_items: nc.normative_items || nc.normativeItems,
+        classification: nc.classification,
+        due_date: nc.due_date || nc.dueDate,
+        images: nc.images || (nc.image ? [nc.image] : [])
+      }));
+
+      const { error: nError } = await supabase
+        .from("safety_non_conformities")
+        .insert(ncs);
+
+      if (nError) {
+        console.error("Error creating non-conformities:", nError.message);
+      }
+    }
+
+    res.json(report);
+  });
+
+  app.put("/api/safety/reports/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { id } = req.params;
+    const { report_number, location, supervisor, status, completed_at, logo_1, logo_2, non_conformities } = req.body;
+
+    const { data: report, error: rError } = await supabase
+      .from("safety_reports")
+      .update({ 
+        report_number, 
+        location, 
+        supervisor, 
+        status, 
+        completed_at,
+        logo_1,
+        logo_2
+      })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (rError) {
+      console.error("Error updating safety report:", rError.message);
+      return res.status(500).json(rError);
+    }
+
+    if (non_conformities) {
+      // Simple approach: delete existing and re-insert
+      await supabase.from("safety_non_conformities").delete().eq("report_id", id);
+      
+      if (non_conformities.length > 0) {
+        const ncs = non_conformities.map((nc: any) => ({
+          report_id: id,
+          description: nc.description,
+          suggestion: nc.suggestion,
+          normative_items: nc.normative_items || nc.normativeItems,
+          classification: nc.classification,
+          due_date: nc.due_date || nc.dueDate,
+          images: nc.images || (nc.image ? [nc.image] : [])
+        }));
+
+        await supabase.from("safety_non_conformities").insert(ncs);
+      }
+    }
+
+    res.json(report);
+  });
+
+  app.delete("/api/safety/reports/:id", async (req, res) => {
+    const user = (req as any).user;
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from("safety_reports")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error deleting safety report:", error.message);
+      return res.status(500).json(error);
+    }
+    res.json({ success: true });
+  });
+
   // Personal Tasks
   app.get("/api/personal/tasks", async (req, res) => {
     const user = (req as any).user;
@@ -1818,7 +1974,7 @@ app.get("/api/config", (req, res) => {
         console.log(`Server running on http://localhost:${PORT}`);
         
         // Test Supabase connection and tables
-        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web"];
+        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities"];
         console.log("\n🔍 Verificando tabelas no Supabase...");
         
         for (const table of tables) {

@@ -4802,7 +4802,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               )}
 
               {activeTab === 'work_safety' && (
-                <SafetyReportGenerator />
+                <SafetyReportGenerator fetchWithAuth={fetchWithAuth} />
               )}
             </motion.div>
           )}
