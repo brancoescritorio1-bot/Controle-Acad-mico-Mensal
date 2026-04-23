@@ -1967,7 +1967,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               <div className="space-y-6">
                 {dashboardData
                   .filter(item => (selectedPeriodFilter === 'all' || item.period_id.toString() === selectedPeriodFilter) && (selectedSubjectDashboardFilter === 'all' || item.id.toString() === selectedSubjectDashboardFilter))
-                  .map(item => {
+                  .sort((a, b) => {
+                    const [ma, ya] = a.month_year.split('/').map(Number);
+                    const [mb, yb] = b.month_year.split('/').map(Number);
+                    if (ya !== yb) return yb - ya;
+                    return mb - ma;
+                  })
+                  .map((item, index) => {
                   const presenceTotal = item.aula1_present + item.aula2_present + item.aula3_present + item.aula4_present;
                   const presencePct = (presenceTotal / 4) * 100;
                   const webTotal = item.c1_watched + item.c2_watched + item.c3_watched + item.c4_watched;
@@ -1992,7 +1998,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   }
 
                   return (
-                    <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div 
+                      key={item.id} 
+                      className={cn(
+                        "bg-white rounded-2xl border transition-all duration-300",
+                        index === 0 
+                          ? "border-l-4 border-l-indigo-600 border-y-gray-200 border-r-gray-200 shadow-xl bg-indigo-50/20 relative z-10" 
+                          : "border-gray-100 shadow-sm overflow-hidden"
+                      )}
+                    >
                       <div className="p-4 md:p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
                           <div>

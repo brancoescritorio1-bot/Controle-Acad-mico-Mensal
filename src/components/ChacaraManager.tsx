@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
+import { cn } from '../lib/utils';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
 import jsPDF from 'jspdf';
@@ -114,6 +115,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [searchBill, setSearchBill] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}});
+  const [highlightedBillId, setHighlightedBillId] = useState<number | null>(null);
 
   const calculateBillCategories = (bill: ChacaraBill) => {
     const energyConsumption = bill.energy_readings && bill.energy_readings.length > 0
@@ -442,6 +444,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       if (res.ok) {
         const savedBill = await res.json();
         const wasEditing = !!editingBill;
+        const targetId = savedBill.id;
+        
         handleClearBillForm();
         // Update filter to show the month of the newly saved bill
         setFilterMonth(payload.month_reference);
@@ -453,6 +457,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         if (setActiveTab) {
           setActiveTab('chacara_history');
         }
+        setHighlightedBillId(targetId);
       } else {
         const errorData = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar conta: ${errorData.message || JSON.stringify(errorData)}`);
@@ -791,6 +796,19 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     window.addEventListener('export-chacara-history', handleExport);
     return () => window.removeEventListener('export-chacara-history', handleExport);
   }, [activeTab, exportToPDF]);
+
+  useEffect(() => {
+    if (activeTab === 'chacara_history' && highlightedBillId) {
+      setTimeout(() => {
+        const element = document.getElementById(`bill-${highlightedBillId}`) || document.getElementById(`bill-mob-${highlightedBillId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Optional: clear the highlight after some time
+          setTimeout(() => setHighlightedBillId(null), 5000);
+        }
+      }, 300);
+    }
+  }, [activeTab, highlightedBillId]);
 
   const handleSaveSettings = async () => {
     try {
@@ -1872,7 +1890,15 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                         const serviceFee = bill.water_service_fee || 0;
 
                         return (
-                          <tr key={bill.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-all ${isPaid ? 'opacity-75' : ''}`}>
+                          <tr 
+                            key={bill.id} 
+                            id={`bill-${bill.id}`}
+                            className={cn(
+                              "border-b border-gray-50 hover:bg-gray-50/50 transition-all",
+                              isPaid ? 'opacity-75' : '',
+                              highlightedBillId === bill.id ? "bg-indigo-50 ring-2 ring-indigo-500 ring-inset" : ""
+                            )}
+                          >
                             <td className={`px-6 py-4 ${isPaid ? 'line-through text-gray-400' : ''}`}>
                               <span className="font-semibold text-gray-800 block">{user?.name || 'Não Identificado'}</span>
                               <span className="text-xs text-gray-500">{user?.phone}</span>
@@ -1981,7 +2007,15 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                     const serviceFee = bill.water_service_fee || 0;
                     
                     return (
-                      <div key={bill.id} className={`p-4 space-y-3 ${isPaid ? 'bg-gray-50/50' : 'bg-white'}`}>
+                      <div 
+                        key={bill.id} 
+                        id={`bill-mob-${bill.id}`}
+                        className={cn(
+                          "p-4 space-y-3 transition-all duration-500",
+                          isPaid ? 'bg-gray-50/50' : 'bg-white',
+                          highlightedBillId === bill.id ? "bg-indigo-50 ring-2 ring-indigo-500 ring-inset" : ""
+                        )}
+                      >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
                             <h4 className={`font-bold text-gray-900 truncate ${isPaid ? 'line-through text-gray-400' : ''}`}>
