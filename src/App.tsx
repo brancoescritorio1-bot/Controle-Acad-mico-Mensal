@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import MainApp from './MainApp';
+import { Download } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [supabaseConfig, setSupabaseConfig] = useState<{ supabaseUrl: string, supabaseKey: string } | null>(null);
   const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -25,6 +27,27 @@ export default function App() {
     }
     fetchConfig();
   }, []);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
 
   useEffect(() => {
     if (!supabaseClient) return;
@@ -122,5 +145,19 @@ export default function App() {
     }
   };
 
-  return <MainApp onLogout={handleLogout} session={session} supabaseClient={supabaseClient} />;
+  return (
+    <>
+      <MainApp onLogout={handleLogout} session={session} supabaseClient={supabaseClient} />
+      {deferredPrompt && (
+        <button 
+          onClick={handleInstall}
+          className="fixed bottom-4 right-4 bg-indigo-600 text-white p-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-indigo-700 transition"
+          title="Instalar App"
+        >
+          <Download size={20} />
+          Instalar
+        </button>
+      )}
+    </>
+  );
 }
