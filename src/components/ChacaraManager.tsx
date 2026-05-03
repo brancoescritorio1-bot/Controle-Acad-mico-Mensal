@@ -758,7 +758,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
     autoTable(doc, {
       startY: 40,
-      head: [['Usuário', 'Energia', 'Água', 'Rateio', 'Fundo Res.', 'Taxas', 'Total', 'Pago', 'Pendente', 'Status', 'Data Pag.']],
+      head: [['Usuário', 'Energia', 'Água', 'Pag. Adv. e Cont.', 'Fundo Res.', 'Taxas', 'Total', 'Pago', 'Pendente', 'Status', 'Data Pag.']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229] },
@@ -935,7 +935,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
     if (apportionment > 0 || reserveFund > 0) {
       message += `\n\n`;
       const extras = [];
-      if (apportionment > 0) extras.push(`Rateio: R$ ${apportionment.toFixed(2).replace('.', ',')}`);
+      if (apportionment > 0) extras.push(`Pag. Adv. e Cont.: R$ ${apportionment.toFixed(2).replace('.', ',')}`);
       if (reserveFund > 0) extras.push(`Fundo de Reserva: R$ ${reserveFund.toFixed(2).replace('.', ',')}`);
       message += extras.join('\n');
     }
@@ -1685,11 +1685,11 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                 <div className="col-span-full border-t border-gray-100 pt-4 mt-2">
                   <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
                     <DollarSign size={16} className="text-amber-500" />
-                    Rateio e Outros
+                    Pag. Adv. e Cont. e Outros
                   </h4>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor do Rateio (R$)</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor do Pag. Adv. e Cont. (R$)</label>
                   <input 
                     type="number"
                     step="0.01"
@@ -1710,7 +1710,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                       <div className={`w-10 h-6 rounded-full transition-all ${billForm.include_apportionment ? 'bg-indigo-600' : 'bg-gray-300'}`}></div>
                       <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all ${billForm.include_apportionment ? 'translate-x-4' : ''}`}></div>
                     </div>
-                    <span className="text-sm font-semibold text-gray-600 group-hover:text-indigo-600 transition-all">Incluir Rateio?</span>
+                    <span className="text-sm font-semibold text-gray-600 group-hover:text-indigo-600 transition-all">Incluir Pag. Adv. e Cont.?</span>
                   </label>
                 </div>
               </div>
@@ -1858,7 +1858,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Usuário</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Total Energia</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Total Água</th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Rateio</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Pag. Adv. e Cont.</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Fundo de Reserva</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Taxas de Serviço</th>
                       <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">Total</th>
@@ -2038,7 +2038,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                         <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                           {energyTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Energia: R$ {energyTotal.toFixed(2)}</span>}
                           {waterValueTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Água: R$ {waterValueTotal.toFixed(2)}</span>}
-                          {apportionment > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Rateio: R$ {apportionment.toFixed(2)}</span>}
+                          {apportionment > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Pag. Adv. e Cont.: R$ {apportionment.toFixed(2)}</span>}
                           {reserveFund > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Fundo: R$ {reserveFund.toFixed(2)}</span>}
                           {serviceFee > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Taxa: R$ {serviceFee.toFixed(2)}</span>}
                         </div>
@@ -2145,7 +2145,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor do Rateio Padrão (R$)</label>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor do Pag. Adv. e Cont. Padrão (R$)</label>
                     <input 
                       type="number"
                       step="0.01"
@@ -2258,7 +2258,7 @@ Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
                       { key: 'water_service_fee', label: 'Prestador de serviço', value: cats.water_service_fee },
                       { key: 'water_total', label: 'Conta de água', value: cats.water_total },
                       { key: 'energy_total', label: 'Conta de energia', value: cats.energy_total },
-                      { key: 'apportionment', label: 'Rateio', value: cats.apportionment }
+                      { key: 'apportionment', label: 'Pag. Adv. e Cont.', value: cats.apportionment }
                     ].filter(item => item.value > 0);
 
                     return items.map(item => (
