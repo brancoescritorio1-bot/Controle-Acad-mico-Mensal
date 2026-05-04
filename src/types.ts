@@ -111,6 +111,7 @@ export interface FinancialTransaction {
   category_id: number;
   account_id: number;
   date: string;
+  due_date?: string;
   status: 'pago' | 'pendente';
   is_installment?: boolean;
   installment_number?: number;

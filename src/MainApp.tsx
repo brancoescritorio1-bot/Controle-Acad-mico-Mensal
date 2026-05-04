@@ -191,6 +191,29 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [finTransactions, setFinTransactions] = useState<FinancialTransaction[]>([]);
   const [finResponsibles, setFinResponsibles] = useState<any[]>([]);
   const [finDashboard, setFinDashboard] = useState<any>(null);
+  const [isUpdatingDueDates, setIsUpdatingDueDates] = useState(false);
+
+  const calculateDueDate = (purchaseDateStr: string, closingDay: number, dueDay: number) => {
+    if (!purchaseDateStr) return null;
+    const [y, m, d] = purchaseDateStr.split('-').map(Number);
+    let month = m - 1; // 0-indexed month
+    let year = y;
+
+    // Se o dia da compra for maior que o dia de fechamento, cai na próxima fatura
+    if (d > closingDay) {
+      month += 1;
+    }
+
+    let dueMonth = month;
+    // Se o dia de vencimento for menor ou igual ao de fechamento, o pagamento é no mês seguinte ao fechamento
+    if (dueDay <= closingDay) {
+      dueMonth += 1;
+    }
+
+    const dueDate = new Date(year, dueMonth, dueDay);
+    return dueDate.toISOString().split('T')[0];
+  };
+
   const [finFilter, setFinFilter] = useState({
     month: new Date().getMonth(),
     year: new Date().getFullYear()
@@ -235,6 +258,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     category_id: '', 
     account_id: '', 
     date: new Date().toISOString().split('T')[0], 
+    due_date: '',
     status: 'pago',
     is_installment: false,
     total_installments: '1',
@@ -635,16 +659,26 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
   const handleSaveFinTransaction = async () => {
     try {
+      let payload = { ...finTransactionForm };
+      
+      // Auto-calculate due_date for credit cards if not manually provided
+      if (payload.account_id && !payload.due_date) {
+        const account = finAccounts.find(a => String(a.id) === String(payload.account_id));
+        if (account && account.type === 'credito' && account.closing_day && account.due_day) {
+          payload.due_date = calculateDueDate(payload.date, Number(account.closing_day), Number(account.due_day));
+        }
+      }
+
       let res;
       if (editingFinTransaction) {
         res = await fetchWithAuth(`/api/finance/transactions/${editingFinTransaction.id}`, {
           method: 'PUT',
-          body: JSON.stringify(finTransactionForm)
+          body: JSON.stringify(payload)
         });
       } else {
         res = await fetchWithAuth('/api/finance/transactions', {
           method: 'POST',
-          body: JSON.stringify(finTransactionForm)
+          body: JSON.stringify(payload)
         });
       }
       
@@ -661,6 +695,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         category_id: '', 
         account_id: '', 
         date: new Date().toISOString().split('T')[0], 
+        due_date: '',
         status: 'pago',
         is_installment: false,
         total_installments: '1',
@@ -1183,15 +1218,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         doc.setFontSize(12);
         doc.text('Detalhamento de Despesas', 14, currentY);
 
-        const expensesData = expenses.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((t: any) => [
-          formatDateString(t.date),
+        const expensesData = expenses.sort((a: any, b: any) => new Date(a.due_date || a.date).getTime() - new Date(b.due_date || b.date).getTime()).map((t: any) => [
+          t.due_date ? new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : formatDateString(t.date),
           t.description,
           finCategories.find(c => String(c.id) === String(t.category_id))?.name || 'Sem Categoria',
           `R$ ${Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         ]);
 
         autoTable(doc, {
-          head: [['Data', 'Descrição', 'Categoria', 'Valor']],
+          head: [['Vencimento', 'Descrição', 'Categoria', 'Valor']],
           body: expensesData,
           startY: currentY + 5,
           theme: 'striped',
@@ -3015,7 +3050,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                 )}
                               </div>
                               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1 sm:mt-0 truncate">
-                                {category?.name || 'Sem Categoria'} • {account?.name || 'Sem Conta'} • {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                {category?.name || 'Sem Categoria'} • {account?.name || 'Sem Conta'} • Venc: {t.due_date ? new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                               </p>
                             </div>
                           </div>
@@ -3040,6 +3075,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                     category_id: t.category_id?.toString() || '',
                                     account_id: t.account_id?.toString() || '',
                                     date: t.date,
+                                    due_date: t.due_date || '',
                                     status: t.status,
                                     is_installment: t.is_installment || false,
                                     total_installments: t.total_installments?.toString() || '1',
@@ -3288,16 +3324,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                       currentY += 5;
 
                                       const headers = selectedCreditCardId === 'all' 
-                                        ? [['Data', 'Cartão', 'Descrição', 'Parcela', 'Valor', 'Status']]
-                                        : [['Data', 'Descrição', 'Parcela', 'Valor', 'Vencimento', 'Status']];
+                                        ? [['Vencimento', 'Cartão', 'Descrição', 'Parcela', 'Valor', 'Status']]
+                                        : [['Vencimento', 'Descrição', 'Parcela', 'Valor', 'Compra', 'Status']];
 
                                       autoTable(doc, {
                                         startY: currentY,
                                         head: headers,
                                         body: items.map(i => {
+                                          const displayDueDate = i.due_date ? new Date(i.due_date + 'T12:00:00').toLocaleDateString() : `Dia ${i.dueDay}`;
                                           if (selectedCreditCardId === 'all') {
                                             return [
-                                              new Date(i.date).toLocaleDateString(),
+                                              displayDueDate,
                                               i.cardName,
                                               i.description,
                                               i.installment,
@@ -3306,11 +3343,11 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                             ];
                                           }
                                           return [
-                                            new Date(i.date).toLocaleDateString(),
+                                            displayDueDate,
                                             i.description,
                                             i.installment,
                                             `R$ ${i.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                                            `Dia ${i.dueDay}`,
+                                            new Date(i.date + 'T12:00:00').toLocaleDateString(),
                                             i.status === 'pago' ? 'Paga' : 'Pendente'
                                           ];
                                         }),
@@ -3357,6 +3394,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                                     if (!tablesData[displayName]) tablesData[displayName] = [];
                                                     tablesData[displayName].push({
                                                         date: t.date,
+                                                        due_date: t.due_date,
                                                         cardName: tCardName,
                                                         description: t.description,
                                                         installment: t.is_installment ? `${t.installment_number}/${t.total_installments}` : '-',
@@ -3369,6 +3407,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                         } else {
                                             generalItems.push({
                                                 date: t.date,
+                                                due_date: t.due_date,
                                                 cardName: tCardName,
                                                 description: t.description,
                                                 installment: t.is_installment ? `${t.installment_number}/${t.total_installments}` : '-',
@@ -3446,7 +3485,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                         <div className="flex-1 min-w-0">
                                           <p className="font-medium text-gray-900 truncate">{t.description}</p>
                                           <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap mt-1 sm:mt-0">
-                                            <span>{new Date(t.date).toLocaleDateString()}</span>
+                                            <span>Vencimento: {t.due_date ? new Date(t.due_date + 'T12:00:00').toLocaleDateString() : 'N/A'}</span>
                                             {t.is_installment && (
                                               <span className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0">
                                                 {t.installment_number}/{t.total_installments}
@@ -3607,6 +3646,12 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                     type="date" 
                     value={finTransactionForm.date} 
                     onChange={(e: any) => setFinTransactionForm({ ...finTransactionForm, date: e.target.value })} 
+                  />
+                  <Input 
+                    label="Data de Vencimento" 
+                    type="date" 
+                    value={finTransactionForm.due_date} 
+                    onChange={(e: any) => setFinTransactionForm({ ...finTransactionForm, due_date: e.target.value })} 
                   />
                   <div className="mb-4">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
@@ -3850,6 +3895,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                     category_id: t.category_id.toString(), 
                                     account_id: t.account_id.toString(), 
                                     date: t.date, 
+                                    due_date: t.due_date || '',
                                     status: t.status,
                                     is_installment: t.is_installment || false,
                                     total_installments: (t.total_installments || 1).toString(),
@@ -3879,7 +3925,42 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
           {activeTab === 'fin_settings' && (
             <motion.div key="fin_settings" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
-              <div className="mb-6 flex justify-end">
+              <div className="mb-6 flex justify-end gap-2">
+                <button 
+                  onClick={async () => {
+                    if (await dialogConfirm('Deseja recalcular e atualizar a data de vencimento de TODOS os lançamentos em cartões de crédito? Isso será feito com base nos dias de fechamento e vencimento de cada cartão.')) {
+                      setIsUpdatingDueDates(true);
+                      try {
+                        let updatedCount = 0;
+                        for (const transaction of finTransactions) {
+                          const account = finAccounts.find(a => a.id === transaction.account_id);
+                          if (account && account.type === 'credito' && account.closing_day && account.due_day) {
+                             const newDueDate = calculateDueDate(transaction.date, Number(account.closing_day), Number(account.due_day));
+                             if (newDueDate && newDueDate !== transaction.due_date) {
+                               await fetchWithAuth(`/api/finance/transactions/${transaction.id}`, {
+                                 method: 'PUT',
+                                 body: JSON.stringify({ due_date: newDueDate })
+                               });
+                               updatedCount++;
+                             }
+                          }
+                        }
+                        dialogAlert(`Atualização concluída! ${updatedCount} lançamentos foram atualizados.`);
+                        fetchFinancialData();
+                      } catch (e) {
+                        dialogAlert('Erro durante a atualização em massa.');
+                      } finally {
+                        setIsUpdatingDueDates(false);
+                      }
+                    }
+                  }}
+                  disabled={isUpdatingDueDates}
+                  className="text-xs font-bold text-amber-600 hover:text-amber-800 flex items-center gap-1 bg-amber-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Clock size={14} className={isUpdatingDueDates ? "animate-spin" : ""} /> 
+                  {isUpdatingDueDates ? "Atualizando..." : "Recalcular Vencimentos"}
+                </button>
+
                 <button 
                   onClick={async () => {
                     if (await dialogConfirm('Deseja verificar e configurar as tabelas do banco de dados?')) {
@@ -3979,13 +4060,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                     {finAccountForm.type === 'credito' && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <Input 
-                          label="Dia Fechamento" 
+                          label="Dia do Fechamento" 
                           type="number" 
                           value={finAccountForm.closing_day} 
                           onChange={(e: any) => setFinAccountForm({ ...finAccountForm, closing_day: e.target.value })} 
                         />
                         <Input 
-                          label="Dia Vencimento" 
+                          label="Dia do Vencimento" 
                           type="number" 
                           value={finAccountForm.due_day} 
                           onChange={(e: any) => setFinAccountForm({ ...finAccountForm, due_day: e.target.value })} 
@@ -4602,7 +4683,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                               onChange={(e: any) => setClientSaleForm({ ...clientSaleForm, purchase_date: e.target.value })} 
                             />
                             <Input 
-                              label="Dia Vencimento" 
+                              label="Dia do Vencimento" 
                               type="number" 
                               value={clientSaleForm.due_day} 
                               onChange={(e: any) => setClientSaleForm({ ...clientSaleForm, due_day: e.target.value })} 

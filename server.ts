@@ -705,7 +705,7 @@ app.get("/api/config", (req, res) => {
   app.post("/api/finance/transactions", async (req, res) => {
     const user = (req as any).user;
     const { 
-      description, amount, type, category_id, account_id, date, status,
+      description, amount, type, category_id, account_id, date, due_date, status,
       is_installment, total_installments, splits 
     } = req.body;
 
@@ -736,7 +736,8 @@ app.get("/api/config", (req, res) => {
         is_installment: true,
         installment_number: 1,
         total_installments,
-        splits: installmentSplits
+        splits: installmentSplits,
+        due_date
       }]).select().single();
 
       if (firstError) return res.status(500).json(firstError);
@@ -759,7 +760,13 @@ app.get("/api/config", (req, res) => {
           installment_number: i,
           total_installments,
           parent_transaction_id: firstInstallment.id,
-          splits: installmentSplits
+          splits: installmentSplits,
+          due_date: (() => {
+            if (!due_date) return null;
+            const d = new Date(due_date + 'T12:00:00');
+            d.setMonth(d.getMonth() + (i - 1));
+            return d.toISOString().split('T')[0];
+          })()
         });
       }
 
@@ -771,7 +778,7 @@ app.get("/api/config", (req, res) => {
       return res.json(firstInstallment);
     } else {
       const { data, error } = await supabase.from("financial_transactions").insert([{
-        description, amount, type, category_id: catId, account_id: accId, date, status, user_id: user.id,
+        description, amount, type, category_id: catId, account_id: accId, date, due_date, status, user_id: user.id,
         splits: splits || []
       }]).select().single();
       if (error) return res.status(500).json(error);
@@ -784,7 +791,7 @@ app.get("/api/config", (req, res) => {
     const updateData: any = {};
     
     // Only update fields that are actually provided in the request body
-    const fields = ['description', 'amount', 'type', 'category_id', 'account_id', 'date', 'status', 'splits', 'is_installment', 'installment_number', 'total_installments'];
+    const fields = ['description', 'amount', 'type', 'category_id', 'account_id', 'date', 'due_date', 'status', 'splits', 'is_installment', 'installment_number', 'total_installments'];
     fields.forEach(field => {
       if (req.body[field] !== undefined) {
         if ((field === 'category_id' || field === 'account_id') && req.body[field] === '') {
