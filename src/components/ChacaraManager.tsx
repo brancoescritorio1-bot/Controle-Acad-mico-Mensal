@@ -454,6 +454,9 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         
         dialogAlert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
         
+        // Automate WhatsApp sending after saving
+        sendWhatsApp(savedBill);
+        
         if (setActiveTab) {
           setActiveTab('chacara_history');
         }
