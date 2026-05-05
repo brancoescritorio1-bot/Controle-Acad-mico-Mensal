@@ -863,88 +863,86 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
     const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-    let message = `Olá ${user.name}, tudo bem?
-Segue a conta referente à Associação Comunitária Vivendas da Serra do mês ${capitalizedMonth}/${year}.`;
+    const hour = new Date().getHours();
+    const greeting = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+    let message = `${greeting}, ${user.name}!
+Segue a conta referente à Associação Comunitária Vivendas da Serra – ${capitalizedMonth}/${year}.
+
+Data da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString('pt-BR')}`;
 
     if (hasEnergy) {
-      message += `\n\nEnergia\n\nData da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString('pt-BR')}\n`;
+      message += `\n\n*Energia*\n`;
       if (energyReadings.length > 1) {
         energyReadings.forEach((r, idx) => {
           message += `Padrão ${idx + 1}:
-Leitura anterior: ${r.prev}
-Leitura atual: ${r.curr}
-Consumo: ${(r.curr - r.prev).toFixed(2).replace('.', ',')} kWh\n\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n\n`;
         });
-        message += `Consumo Total: ${consumption.toFixed(2).replace('.', ',')} kWh\n`;
+        message += `Consumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
       } else if (energyReadings.length === 1) {
-        message += `Leitura anterior: ${energyReadings[0].prev}
-Leitura atual: ${energyReadings[0].curr}
-Consumo: ${consumption.toFixed(2).replace('.', ',')} kWh\n`;
+        message += `Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR')}
+Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR')}
+Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
       } else {
         // Fallback for old bills
         const c1 = bill.curr_reading - bill.prev_reading;
         const c2 = (bill.curr_reading_2 || 0) - (bill.prev_reading_2 || 0);
         if (c2 > 0) {
-          message += `Padrão 1: ${c1.toFixed(2).replace('.', ',')} kWh
-Padrão 2: ${c2.toFixed(2).replace('.', ',')} kWh
-Consumo Total: ${consumption.toFixed(2).replace('.', ',')} kWh\n`;
+          message += `Padrão 1: ${Number(c1).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh
+Padrão 2: ${Number(c2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh
+Consumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
         } else {
-          message += `Leitura anterior: ${bill.prev_reading}
-Leitura atual: ${bill.curr_reading}
-Consumo: ${consumption.toFixed(2).replace('.', ',')} kWh\n`;
+          message += `Leitura anterior: ${Number(bill.prev_reading).toLocaleString('pt-BR')}
+Leitura atual: ${Number(bill.curr_reading).toLocaleString('pt-BR')}
+Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
         }
       }
-      message += `Valor do kWh: R$ ${bill.kwh_value.toFixed(2).replace('.', ',')}
-Valor da energia: R$ ${energyTotal.toFixed(2).replace('.', ',')}`;
+      message += `Valor do kWh: R$ ${bill.kwh_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Subtotal: R$ ${energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     }
 
     if (hasWater) {
-      message += `\n\n\nÁgua\n\n`;
+      message += `\n\n*Água*\n`;
       if (waterReadings.length > 1) {
         waterReadings.forEach((r, idx) => {
           message += `Hidrômetro ${idx + 1}:
-Leitura anterior: ${r.prev}
-Leitura atual: ${r.curr}
-Consumo: ${(r.curr - r.prev).toFixed(2).replace('.', ',')} m³\n\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n\n`;
         });
-        message += `Consumo Total: ${waterConsumption.toFixed(2).replace('.', ',')} m³\n`;
+        message += `Consumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
       } else if (waterReadings.length === 1) {
-        message += `Leitura anterior: ${waterReadings[0].prev}
-Leitura atual: ${waterReadings[0].curr}
-Consumo: ${waterConsumption.toFixed(2).replace('.', ',')} m³\n`;
+        message += `Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR')}
+Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR')}
+Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
       } else {
         // Fallback
         const wc1 = (bill.water_curr_reading || 0) - (bill.water_prev_reading || 0);
         const wc2 = (bill.water_curr_reading_2 || 0) - (bill.water_prev_reading_2 || 0);
         if (wc2 > 0) {
-          message += `Hidrômetro 1: ${wc1.toFixed(2).replace('.', ',')} m³
-Hidrômetro 2: ${wc2.toFixed(2).replace('.', ',')} m³
-Consumo Total Água: ${waterConsumption.toFixed(2).replace('.', ',')} m³\n`;
+          message += `Hidrômetro 1: ${Number(wc1).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³
+Hidrômetro 2: ${Number(wc2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³
+Consumo Total Água: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
         } else {
-          message += `Leitura anterior: ${bill.water_prev_reading || 0}
-Leitura atual: ${bill.water_curr_reading || 0}
-Consumo: ${waterConsumption.toFixed(2).replace('.', ',')} m³\n`;
+          message += `Leitura anterior: ${Number(bill.water_prev_reading || 0).toLocaleString('pt-BR')}
+Leitura atual: ${Number(bill.water_curr_reading || 0).toLocaleString('pt-BR')}
+Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
         }
       }
-      message += `Valor do m³: R$ ${(bill.water_value || 0).toFixed(2).replace('.', ',')}
-Valor da água: R$ ${(waterConsumption * (bill.water_value || 0)).toFixed(2).replace('.', ',')}
-Prestador de serviço: R$ ${waterServiceFee.toFixed(2).replace('.', ',')}
-Subtotal: R$ ${waterTotal.toFixed(2).replace('.', ',')}`;
+      message += `Valor do m³: R$ ${(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Prestador de serviço: R$ ${waterServiceFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Subtotal: R$ ${waterTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     }
 
-    if (apportionment > 0 || reserveFund > 0) {
-      message += `\n\n`;
-      const extras = [];
-      if (apportionment > 0) extras.push(`Pag. Adv. e Cont.: R$ ${apportionment.toFixed(2).replace('.', ',')}`);
-      if (reserveFund > 0) extras.push(`Fundo de Reserva: R$ ${reserveFund.toFixed(2).replace('.', ',')}`);
-      message += extras.join('\n');
-    }
+    message += `\n\nFundo de reserva: R$ ${reserveFund > 0 ? reserveFund.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}
+Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}`;
 
-    message += `\n\nData de vencimento: ${new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}`;
-    message += `\n\nTotal a pagar: R$ ${bill.total.toFixed(2).replace('.', ',')}`;
+    message += `\n\n*Data de vencimento: ${new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}*`;
+    message += `\n\n*Total a pagar: R$ ${bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*`;
 
     if (settings.whatsapp_observation) {
-      message += `\n\n${settings.whatsapp_observation}`;
+      message += `\n\nObservações: ${settings.whatsapp_observation}`;
     }
 
     const encodedMessage = encodeURIComponent(message);

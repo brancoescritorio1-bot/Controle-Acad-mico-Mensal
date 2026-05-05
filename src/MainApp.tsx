@@ -250,6 +250,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   
   const [finCategoryForm, setFinCategoryForm] = useState({ name: '', type: 'despesa' });
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
   const [finAccountForm, setFinAccountForm] = useState({ name: '', initial_balance: '', type: 'corrente', closing_day: '', due_day: '' });
   const [finTransactionForm, setFinTransactionForm] = useState({ 
     description: '', 
@@ -4790,7 +4797,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                     </button>
                                     {inst.status === 'pendente' && inst.client_sales?.clients?.phone && (
                                       <a
-                                        href={`https://wa.me/${inst.client_sales.clients.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${inst.client_sales.clients.name}, lembrete de vencimento da parcela ${String(inst.installment_number).padStart(2, '0')}/${String(inst.client_sales.installment_count || 1).padStart(2, '0')} referente a ${inst.client_sales.description}. Valor: R$ ${Number(inst.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Vencimento: ${formatDateString(inst.due_date)}.`)}`}
+                                        href={`https://wa.me/${inst.client_sales.clients.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`${getGreeting()}! Olá ${inst.client_sales.clients.name}, lembrete de vencimento da parcela ${String(inst.installment_number).padStart(2, '0')}/${String(inst.client_sales.installment_count || 1).padStart(2, '0')} referente a ${inst.client_sales.description}. Valor: R$ ${Number(inst.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Vencimento: ${formatDateString(inst.due_date)}.`)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200"
@@ -4848,7 +4855,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                         <div className="space-y-3">
                           {clients.length > 0 ? (
                             clients.map(client => {
-                              const message = whatsappMessageTemplate.replace(/{nome}/g, client.name);
+                              const message = `${getGreeting()}! ` + whatsappMessageTemplate.replace(/{nome}/g, client.name);
                               const whatsappLink = client.phone ? `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}` : '#';
                               const hasSent = sentMessages.includes(client.id);
                               

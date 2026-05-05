@@ -231,7 +231,9 @@ export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorPr
   };
 
   const generateMessage = () => {
-    let msg = `Prezados, boa tarde!\n\nInformo sobre o click segurança com inconformidades de:\n\n`;
+    const hour = new Date().getHours();
+    const greeting = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+    let msg = `${greeting}! Prezados!\n\nInformo sobre o click segurança com inconformidades de:\n\n`;
     msg += `Número da Inconformidade: ${currentReport.report_number}\n`;
     msg += `Local: ${currentReport.location}\n`;
     msg += `Supervisor Responsável: ${currentReport.supervisor}\n\n`;
