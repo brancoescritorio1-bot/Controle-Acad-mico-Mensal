@@ -427,7 +427,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     const monthNames = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
     const periodLabel = filterMode === 'month' ? monthNames[month - 1] : `ANO ${filterYear}`;
 
-    let message = `RELAÇÃO CONTAS ${periodLabel}\n`;
+    let message = `RELAÇÃO CONTAS ${periodLabel}\n\n`;
 
     const getFormattedDate = (dateStr: string) => {
       if (!dateStr) return '';
@@ -471,6 +471,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
           message += `${item.subName}: R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
           message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
         });
+        message += `\n`;
       } else if (baseName === 'VIVO') {
         message += `*- ${baseName}:*\n`;
         const allSameDate = items.every(i => i.due_date === items[0].due_date && i.reference_month === items[0].reference_month);
@@ -488,12 +489,14 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
             message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
           });
         }
+        message += `\n`;
       } else if (baseName === 'OI') {
         items.forEach(item => {
           const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
           message += `*-OI* -\nR$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
           message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedFullYearDate(item.due_date)}\n`;
         });
+        message += `\n`;
       } else {
         // Other single items like PLIM, etc.
         items.forEach(item => {
@@ -508,6 +511,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
             message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
           }
         });
+        message += `\n`;
       }
     }
 
