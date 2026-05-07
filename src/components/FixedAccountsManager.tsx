@@ -47,12 +47,23 @@ export const FixedAccountsManager: React.FC<FixedAccountsManagerProps> = ({ supa
   const [showForm, setShowForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FixedAccount | null>(null);
   
+  const getPreviousMonth = (dateStr: string) => {
+    const [year, month] = dateStr.split('-').map(Number);
+    let prevMonth = month - 1;
+    let prevYear = year;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear -= 1;
+    }
+    return `${prevYear}-${prevMonth.toString().padStart(2, '0')}`;
+  };
+
   const [form, setForm] = useState({
     category: '',
     sub_category: '',
     amount: '',
     due_date: new Date().toISOString().slice(0, 10),
-    month_reference: new Date().toISOString().slice(0, 7),
+    month_reference: getPreviousMonth(new Date().toISOString().slice(0, 10)),
     status: 'pendente' as FixedAccount['status'],
     notes: ''
   });
@@ -130,12 +141,13 @@ export const FixedAccountsManager: React.FC<FixedAccountsManagerProps> = ({ supa
   };
 
   const resetForm = () => {
+    const today = new Date().toISOString().slice(0, 10);
     setForm({
       category: '',
       sub_category: '',
       amount: '',
-      due_date: new Date().toISOString().slice(0, 10),
-      month_reference: filterMonth,
+      due_date: today,
+      month_reference: getPreviousMonth(today),
       status: 'pendente',
       notes: ''
     });
@@ -436,7 +448,14 @@ export const FixedAccountsManager: React.FC<FixedAccountsManagerProps> = ({ supa
                     <input 
                       required type="date" 
                       value={form.due_date} 
-                      onChange={e => setForm({...form, due_date: e.target.value})}
+                      onChange={e => {
+                        const newDueDate = e.target.value;
+                        setForm({
+                          ...form, 
+                          due_date: newDueDate,
+                          month_reference: getPreviousMonth(newDueDate)
+                        });
+                      }}
                       className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold"
                     />
                   </div>
