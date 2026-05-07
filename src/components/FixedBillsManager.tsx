@@ -579,7 +579,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
       </div>
 
       {/* Advanced Filters */}
-      {view === 'dashboard' && (
+      {(view === 'dashboard' || view === 'history') && (
         <div className="bg-white p-3 md:p-4 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-hide">
             
