@@ -173,9 +173,15 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
         .order('due_date');
 
       if (filterMode === 'month') {
+        if (!filterMonth) {
+          setPayments([]);
+          setLoading(false);
+          return;
+        }
         const [year, month] = filterMonth.split('-').map(Number);
-        const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-        const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         paymentsQuery = paymentsQuery.gte('due_date', startDate).lte('due_date', endDate);
       } else {
         const year = Number(filterYear);
@@ -421,73 +427,91 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     const monthNames = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
     const periodLabel = filterMode === 'month' ? monthNames[month - 1] : `ANO ${filterYear}`;
 
-    // Build the specific format required
-    let message = `RELAÇÃO CONTAS ${periodLabel}\n\n`;
+    let message = `RELAÇÃO CONTAS ${periodLabel}\n`;
 
-    // Grouping by Bill Name (for specific formatting)
+    const getFormattedDate = (dateStr: string) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y.substring(2)}`;
+    };
+
+    const getFormattedFullYearDate = (dateStr: string) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    };
+
+    // Apply generic groupings based on the requested template
     const grouped = payments.reduce((acc: any, p) => {
-      const name = p.bill?.name || '';
-      if (!acc[name]) acc[name] = [];
-      acc[name].push(p);
+      let baseName = p.bill?.name || '';
+      let subName = p.bill?.property || '';
+      
+      if (baseName.startsWith('VIVO')) {
+        subName = baseName.replace('VIVO', '').trim();
+        baseName = 'VIVO';
+      } else if (baseName === 'CEMIG' || baseName === 'COPASA') {
+        if (subName.toLowerCase().includes('101')) subName = '101';
+        else if (subName.toLowerCase().includes('102')) subName = '102';
+      } else if (baseName === 'OI' || baseName === 'PLIM') {
+        subName = '';
+      }
+
+      if (!acc[baseName]) acc[baseName] = [];
+      acc[baseName].push({ subName, ...p });
       return acc;
     }, {});
 
-    // CEMIG
-    if (grouped['CEMIG']) {
-      message += `- CEMIG:\n`;
-      grouped['CEMIG'].sort((a: any, b: any) => a.bill.property.localeCompare(b.bill.property)).forEach((p: any) => {
-        const propNum = p.bill.property.includes('101') ? '101' : '102';
-        message += `${propNum}: R$ ${Number(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-      });
+    for (const [baseName, items] of Object.entries(grouped) as unknown as [string, any[]][]) {
+      items.sort((a, b) => a.subName.localeCompare(b.subName));
+      
+      if (baseName === 'CEMIG' || baseName === 'COPASA') {
+        message += `*- ${baseName}:*\n`;
+        items.forEach(item => {
+          const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
+          message += `${item.subName}: R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+          message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
+        });
+      } else if (baseName === 'VIVO') {
+        message += `*- ${baseName}:*\n`;
+        const allSameDate = items.every(i => i.due_date === items[0].due_date && i.reference_month === items[0].reference_month);
+        
+        if (allSameDate && items.length > 0) {
+          items.forEach(item => {
+            const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
+            message += `${item.subName}: R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+          });
+          message += `Ref: ${items[0].reference_month || ''} Venc: ${getFormattedDate(items[0].due_date)}\n`;
+        } else {
+          items.forEach(item => {
+            const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
+            message += `${item.subName}: R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+            message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
+          });
+        }
+      } else if (baseName === 'OI') {
+        items.forEach(item => {
+          const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
+          message += `*-OI* -\nR$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+          message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedFullYearDate(item.due_date)}\n`;
+        });
+      } else {
+        // Other single items like PLIM, etc.
+        items.forEach(item => {
+          const statusText = item.status === 'RETIDA' ? ' - RETIDA' : '';
+          // If the item subname is empty, format like PLIM
+          if (!item.subName) {
+            message += `*- ${baseName}:* - R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+            message += `Venc.: ${getFormattedFullYearDate(item.due_date)}\n`;
+          } else {
+            message += `*- ${baseName}:*\n`;
+            message += `${item.subName}: R$ ${Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${statusText}\n`;
+            message += `Ref: ${item.reference_month || ''} Venc: ${getFormattedDate(item.due_date)}\n`;
+          }
+        });
+      }
     }
 
-    // COPASA
-    if (grouped['COPASA']) {
-      message += `- COPASA:\n`;
-      grouped['COPASA'].sort((a: any, b: any) => a.bill.property.localeCompare(b.bill.property)).forEach((p: any) => {
-        const propNum = p.bill.property.includes('101') ? '101' : '102';
-        message += `${propNum}: R$ ${Number(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-      });
-    }
-
-    // VIVO
-    const vivoPay = payments.filter(p => p.bill?.name.startsWith('VIVO'));
-    if (vivoPay.length > 0) {
-      message += `- VIVO:\n`;
-      vivoPay.forEach(p => {
-        const final = p.bill?.name.split(' ')[1] || '';
-        message += `${final}: R$ ${Number(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-      });
-    }
-
-    // OI
-    const oiPay = payments.find(p => p.bill?.name === 'OI');
-    if (oiPay) {
-      message += `- OI:\nR$ ${Number(oiPay.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    }
-
-    // CHÁCARA
-    const chacPay = payments.find(p => p.bill?.name === 'CHÁCARA');
-    if (chacPay) {
-      message += `- CHÁCARA:\nR$ ${Number(chacPay.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    }
-
-    // PARCELA CHÁCARA
-    const parcPay = payments.find(p => p.bill?.name === 'PARCELA CHÁCARA');
-    if (parcPay) {
-      message += `- Parcela chácara:\nR$ ${Number(parcPay.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-    }
-
-    // Other bills not in the specific list
-    const specificKeys = ['CEMIG', 'COPASA', 'VIVO 0331', 'VIVO 0449', 'VIVO 9993', 'OI', 'CHÁCARA', 'PARCELA CHÁCARA'];
-    const others = payments.filter(p => !specificKeys.includes(p.bill?.name || ''));
-    if (others.length > 0) {
-      others.forEach(p => {
-        message += `- ${p.bill?.name}: R$ ${Number(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-      });
-    }
-
-    message += `\nTOTAL R$ ${totals.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    message += `*TOTAL R$ ${totals.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
