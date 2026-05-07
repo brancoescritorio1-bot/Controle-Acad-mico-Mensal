@@ -155,7 +155,6 @@ import { ResponsibleManager } from './components/ResponsibleManager';
 import { ChacaraManager } from './components/ChacaraManager';
 import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
 import { SafetyReportGenerator } from './components/SafetyReportGenerator';
-import { FixedAccountsManager } from './components/FixedAccountsManager';
 import { useDialog } from './components/DialogContext';
 
 export const getGreeting = () => {
@@ -3954,12 +3953,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             </motion.div>
           )}
 
-          {activeTab === 'fin_fixed' && (
-            <motion.div key="fin_fixed" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
-              <FixedAccountsManager supabase={supabaseClient!} session={session} />
-            </motion.div>
-          )}
-
           {activeTab === 'fin_settings' && (
             <motion.div key="fin_settings" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
               <div className="mb-6 flex justify-end gap-2">
@@ -4991,8 +4984,8 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-20 print:hidden overflow-x-auto scrollbar-hide">
-        <div className="max-w-6xl mx-auto flex justify-between w-full min-w-max sm:min-w-0">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-20 print:hidden">
+        <div className="max-w-6xl mx-auto flex justify-between w-full">
           {activeModule === 'academic' ? (
             <>
               <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />
@@ -5005,7 +4998,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           ) : activeModule === 'financial' ? (
             <>
               <TabButton active={activeTab === 'fin_dashboard'} onClick={() => setActiveTab('fin_dashboard')} icon={LayoutDashboard} label="Dash" />
-              <TabButton active={activeTab === 'fin_fixed'} onClick={() => setActiveTab('fin_fixed')} icon={History} label="Contas Fixas" />
               <TabButton active={activeTab === 'fin_extract'} onClick={() => setActiveTab('fin_extract')} icon={Search} label="Extrato" />
               <TabButton active={activeTab === 'fin_credit'} onClick={() => setActiveTab('fin_credit')} icon={CreditCard} label="Crédito" />
               <TabButton active={activeTab === 'fin_transactions'} onClick={() => setActiveTab('fin_transactions')} icon={ArrowRightLeft} label="Lançamentos" />
