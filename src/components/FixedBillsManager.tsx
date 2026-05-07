@@ -975,7 +975,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
@@ -1051,7 +1051,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">

@@ -1043,7 +1043,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             key="dashboard"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
           >
             <StrictFinanceDashboard 
               lancamentos={lancamentos} 
@@ -1058,7 +1058,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             key="users"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="grid grid-cols-1 lg:grid-cols-3 gap-6"
           >
             <div className="lg:col-span-1">
@@ -1477,7 +1477,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             key="bills"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="space-y-6"
           >
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -1766,7 +1766,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             key="history"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="space-y-6"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -2087,7 +2087,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             key="settings"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="max-w-2xl mx-auto"
           >
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-8">
@@ -2207,13 +2207,13 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
               className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl"
             >
               <h3 className="text-xl font-black text-gray-900 mb-4">Confirmar Pagamento</h3>

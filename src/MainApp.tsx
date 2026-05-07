@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { 
   BookOpen, 
   Calendar, 
@@ -150,12 +150,11 @@ const Select = ({ label, options, className = "", containerClassName = "", noMar
 
 // --- Main App ---
 
-import { ResponsibleManager } from './components/ResponsibleManager';
-import { FixedBillsManager } from './components/FixedBillsManager';
-
-import { ChacaraManager } from './components/ChacaraManager';
-import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
-import { SafetyReportGenerator } from './components/SafetyReportGenerator';
+const ResponsibleManager = lazy(() => import('./components/ResponsibleManager').then(mod => ({ default: mod.ResponsibleManager })));
+const FixedBillsManager = lazy(() => import('./components/FixedBillsManager').then(mod => ({ default: mod.FixedBillsManager })));
+const ChacaraManager = lazy(() => import('./components/ChacaraManager').then(mod => ({ default: mod.ChacaraManager })));
+const ChacaraFinanceDashboard = lazy(() => import('./components/ChacaraFinanceDashboard').then(mod => ({ default: mod.ChacaraFinanceDashboard })));
+const SafetyReportGenerator = lazy(() => import('./components/SafetyReportGenerator').then(mod => ({ default: mod.SafetyReportGenerator })));
 import { useDialog } from './components/DialogContext';
 
 export const getGreeting = () => {
@@ -1281,7 +1280,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-24">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 print:hidden">
         <div className="max-w-6xl mx-auto px-2 md:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 md:gap-3">
@@ -1387,7 +1386,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <AnimatePresence mode="wait">
           {activeTab === 'subjects' && (
-            <motion.div key="subjects" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="subjects" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Cadastrar Mês / Matéria" icon={Plus}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
@@ -1463,7 +1462,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'periods' && (
-            <motion.div key="periods" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="periods" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Cadastrar Período" icon={Layers}>
                 <Input 
                   label="Nome do Período" 
@@ -1507,7 +1506,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'attendance' && (
-            <motion.div key="attendance" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="attendance" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Select 
                 label="Selecionar Mês/Matéria" 
                 options={subjects} 
@@ -1641,7 +1640,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'activities' && (
-            <motion.div key="activities" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="activities" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Select 
                 label="Selecionar Mês/Matéria" 
                 options={subjects} 
@@ -1815,7 +1814,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'web' && (
-            <motion.div key="web" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="web" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Select 
                 label="Selecionar Mês/Matéria" 
                 options={subjects} 
@@ -1930,7 +1929,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'dashboard' && (
-            <motion.div key="dashboard" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
+            <motion.div key="dashboard" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Resumo Geral</h2>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
@@ -2199,7 +2198,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             </motion.div>
           )}
           {activeTab === 'settings' && (
-            <motion.div key="settings" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="settings" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="space-y-8">
                 {/* Section 1: Periods */}
                 <section>
@@ -2585,7 +2584,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             </motion.div>
           )}
           {activeTab === 'users' && (
-            <motion.div key="users" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Usuários Cadastrados" icon={Shield}>
                 {usersError ? (
                   <div className="text-center py-8 text-red-500">
@@ -2667,13 +2666,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'fin_fixed_bills' && (
-            <motion.div key="fin_fixed_bills" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <FixedBillsManager supabase={supabaseClient} />
+            <motion.div key="fin_fixed_bills" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
+              <Suspense fallback={<div className="flex justify-center p-12"><div className="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div></div>}>
+                <FixedBillsManager supabase={supabaseClient} />
+              </Suspense>
             </motion.div>
           )}
 
           {activeTab === 'fin_dashboard' && (
-            <motion.div key="fin_dashboard" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <motion.div key="fin_dashboard" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               {/* Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -2829,7 +2830,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
 
           {activeTab === 'fin_extract' && (
-            <motion.div key="fin_extract" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <motion.div key="fin_extract" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
                 <div className="flex items-center gap-2 mb-6">
                   <Filter size={20} className="text-indigo-600" />
@@ -3164,7 +3165,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'fin_credit' && (
-            <motion.div key="fin_credit" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <motion.div key="fin_credit" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Gestão de Crédito" icon={CreditCard}>
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Selecione o Cartão</label>
@@ -3634,7 +3635,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'fin_transactions' && (
-            <motion.div key="fin_transactions" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <motion.div key="fin_transactions" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Novo Lançamento" icon={Plus}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input 
@@ -3968,7 +3969,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeTab === 'fin_settings' && (
-            <motion.div key="fin_settings" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <motion.div key="fin_settings" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="mb-6 flex justify-end gap-2">
                 <button 
                   onClick={async () => {
@@ -4154,19 +4155,23 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 </Card>
 
                 {/* Responsible Manager */}
-                <ResponsibleManager fetchWithAuth={fetchWithAuth} onUpdate={fetchResponsibles} />
+                <Suspense fallback={<div className="flex justify-center p-12"><div className="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div></div>}>
+                  <ResponsibleManager fetchWithAuth={fetchWithAuth} onUpdate={fetchResponsibles} />
+                </Suspense>
               </div>
             </motion.div>
           )}
 
           {activeModule === 'chacara' && (
-            <motion.div key="chacara" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <ChacaraManager fetchWithAuth={fetchWithAuth} activeTab={activeTab} onDataUpdate={fetchChacaraBills} setActiveTab={setActiveTab} />
+            <motion.div key="chacara" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
+              <Suspense fallback={<div className="flex justify-center p-12"><div className="w-8 h-8 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></div></div>}>
+                <ChacaraManager fetchWithAuth={fetchWithAuth} activeTab={activeTab} onDataUpdate={fetchChacaraBills} setActiveTab={setActiveTab} />
+              </Suspense>
             </motion.div>
           )}
 
           {activeModule === 'personal' && (
-            <motion.div key="personal" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="personal" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               {activeTab === 'personal_tasks' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Left Column: Add Task */}
@@ -4501,7 +4506,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           )}
 
           {activeModule === 'work' && (
-            <motion.div key="work" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <motion.div key="work" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Calendar size={20} className="text-indigo-600" />
@@ -4943,7 +4948,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               )}
 
               {activeTab === 'work_safety' && (
-                <SafetyReportGenerator fetchWithAuth={fetchWithAuth} />
+                <Suspense fallback={<div className="flex justify-center p-12"><div className="w-8 h-8 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></div></div>}>
+                  <SafetyReportGenerator fetchWithAuth={fetchWithAuth} />
+                </Suspense>
               )}
             </motion.div>
           )}
@@ -4998,7 +5005,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-20 print:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-40 print:hidden">
         <div className="max-w-6xl mx-auto flex justify-between w-full">
           {activeModule === 'academic' ? (
             <>
