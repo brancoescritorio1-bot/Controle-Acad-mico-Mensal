@@ -97,43 +97,51 @@ const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
   </motion.button>
 );
 
-const Card = ({ children, title, icon: Icon }: { children: React.ReactNode, title?: string, icon?: any, key?: any }) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+const Card = ({ children, title, icon: Icon, className = "" }: { children: React.ReactNode, title?: string, icon?: any, key?: any, className?: string }) => (
+  <div className={cn("bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 transition-all hover:shadow-md", className)}>
     {title && (
-      <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-50 flex items-center gap-2 bg-gray-50/50">
-        {Icon && <Icon size={18} className="text-indigo-600" />}
-        <h3 className="font-semibold text-gray-800 text-sm md:text-base">{title}</h3>
+      <div className="px-5 md:px-6 py-4 md:py-5 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+        <div className="flex items-center gap-3">
+          {Icon && <Icon size={20} className="text-indigo-600" />}
+          <h3 className="font-bold text-gray-800 text-sm md:text-base tracking-tight uppercase">{title}</h3>
+        </div>
       </div>
     )}
-    <div className="p-4 md:p-6">
+    <div className="p-5 md:p-8">
       {children}
     </div>
   </div>
 );
 
-const Input = ({ label, type = "text", ...props }: any) => (
-  <div className="mb-4">
-    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</label>
+const Input = ({ label, type = "text", className = "", containerClassName = "", noMargin = false, ...props }: any) => (
+  <div className={cn("w-full", !noMargin && "mb-5", containerClassName)}>
+    {label && <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">{label}</label>}
     <input
       type={type}
       autoComplete="off"
       spellCheck="false"
       {...props}
-      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+      className={cn(
+        "w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm md:text-base font-medium placeholder:text-gray-300",
+        className
+      )}
     />
   </div>
 );
 
-const Select = ({ label, options, ...props }: any) => (
-  <div className="mb-4">
-    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</label>
+const Select = ({ label, options, className = "", containerClassName = "", noMargin = false, ...props }: any) => (
+  <div className={cn("w-full", !noMargin && "mb-5", containerClassName)}>
+    {label && <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">{label}</label>}
     <select
       {...props}
-      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+      className={cn(
+        "w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm md:text-base font-medium appearance-none cursor-pointer",
+        className
+      )}
     >
       <option value="">Selecione...</option>
       {options.map((opt: any) => (
-        <option key={opt.id} value={opt.id}>{opt.month_year} - {opt.subject_name}</option>
+        <option key={opt.id} value={opt.id}>{opt.month_year || opt.name} {opt.subject_name ? `- ${opt.subject_name}` : ''}</option>
       ))}
     </select>
   </div>
@@ -147,7 +155,21 @@ import { ResponsibleManager } from './components/ResponsibleManager';
 import { ChacaraManager } from './components/ChacaraManager';
 import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
 import { SafetyReportGenerator } from './components/SafetyReportGenerator';
+import { FixedAccountsManager } from './components/FixedAccountsManager';
 import { useDialog } from './components/DialogContext';
+
+export const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Bom dia';
+  if (hour >= 12 && hour < 18) return 'Boa tarde';
+  return 'Boa noite';
+};
+
+export const WhatsAppIcon = ({ size = 20, className = "" }: { size?: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
 
 export default function MainApp({ onLogout, session, supabaseClient }: { onLogout: () => void, session: Session | null, supabaseClient: SupabaseClient | null }) {
   const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
@@ -250,13 +272,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   
   const [finCategoryForm, setFinCategoryForm] = useState({ name: '', type: 'despesa' });
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Bom dia';
-    if (hour >= 12 && hour < 18) return 'Boa tarde';
-    return 'Boa noite';
-  };
-
+  
   const [finAccountForm, setFinAccountForm] = useState({ name: '', initial_balance: '', type: 'corrente', closing_day: '', due_day: '' });
   const [finTransactionForm, setFinTransactionForm] = useState({ 
     description: '', 
@@ -1368,15 +1384,12 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               <Card title="Cadastrar Mês / Matéria" icon={Plus}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Período *</label>
-                    <select
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    <Select
+                      label="Período *"
                       value={subjectForm.period_id}
                       onChange={(e: any) => setSubjectForm({ ...subjectForm, period_id: e.target.value })}
-                    >
-                      <option value="">Selecione um período...</option>
-                      {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                      options={periods.map(p => ({ id: p.id, name: p.name }))}
+                    />
                   </div>
                   <Input 
                     label="Mês/Ano" 
@@ -1512,14 +1525,15 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                             <Input 
                               label="Data" 
                               type="date" 
+                              noMargin
                               value={(attendanceForm as any)[`data_aula_${num}`] || ''} 
                               onChange={(e: any) => {
                                 const newData = { ...attendanceForm, [`data_aula_${num}`]: e.target.value };
                                 setAttendanceForm(newData);
                               }}
                             />
-                            <div className="mb-4">
-                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Status</label>
                               <div className="flex bg-gray-100 p-1 rounded-xl">
                                 <button 
                                   onClick={() => {
@@ -1815,39 +1829,49 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                           "transition-all duration-300",
                           saved ? "opacity-60 pointer-events-none" : "opacity-100"
                         )}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className="flex items-center gap-4 flex-1">
                               <div className={cn(
-                                "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
-                                (webContentForm as any)[`conteudo_${num}_assistido`] ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-400"
+                                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0 shadow-sm",
+                                (webContentForm as any)[`conteudo_${num}_assistido`] ? "bg-emerald-100 text-emerald-600" : "bg-gray-50 text-gray-400"
                               )}>
                                 <MonitorPlay size={24} />
                               </div>
-                              <div>
-                                <h4 className="font-bold text-gray-800">Conteúdo Web {num}</h4>
-                                <Input 
-                                  type="date" 
-                                  className="mt-1 text-xs bg-transparent border-none p-0 focus:ring-0" 
-                                  value={(webContentForm as any)[`data_${num}`] || ''}
-                                  onChange={(e: any) => {
-                                    const newData = { ...webContentForm, [`data_${num}`]: e.target.value };
-                                    setWebContentForm(newData);
-                                  }}
-                                />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-bold text-gray-800 truncate text-sm sm:text-base">Conteúdo Web {num}</h4>
+                                <div className="mt-1 flex items-center gap-2 bg-gray-50/80 px-3 py-1.5 rounded-xl border border-gray-100 w-fit">
+                                  <Calendar size={14} className="text-gray-400 shrink-0" />
+                                  <input 
+                                    type="date" 
+                                    className="text-[10px] sm:text-xs bg-transparent border-none p-0 focus:ring-0 font-bold text-gray-600 cursor-pointer min-w-0" 
+                                    value={(webContentForm as any)[`data_${num}`] || ''}
+                                    onChange={(e: any) => {
+                                      const newData = { ...webContentForm, [`data_${num}`]: e.target.value };
+                                      setWebContentForm(newData);
+                                    }}
+                                  />
+                                </div>
                               </div>
                             </div>
-                            <button 
-                              onClick={() => {
-                                const newData = { ...webContentForm, [`conteudo_${num}_assistido`]: !(webContentForm as any)[`conteudo_${num}_assistido`] };
-                                setWebContentForm(newData);
-                              }}
-                              className={cn(
-                                "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
-                                (webContentForm as any)[`conteudo_${num}_assistido`] ? "bg-emerald-600 border-emerald-600 text-white" : "border-gray-200 text-gray-300"
-                              )}
-                            >
-                              <CheckCircle2 size={20} />
-                            </button>
+                            <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-0 border-gray-50">
+                              <span className="sm:hidden text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                {(webContentForm as any)[`conteudo_${num}_assistido`] ? 'Finalizado' : 'Marcar Visto'}
+                              </span>
+                              <button 
+                                onClick={() => {
+                                  const newData = { ...webContentForm, [`conteudo_${num}_assistido`]: !(webContentForm as any)[`conteudo_${num}_assistido`] };
+                                  setWebContentForm(newData);
+                                }}
+                                className={cn(
+                                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shrink-0 active:scale-95",
+                                  (webContentForm as any)[`conteudo_${num}_assistido`] 
+                                    ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100" 
+                                    : "border-gray-200 text-gray-300 hover:border-emerald-200 hover:text-emerald-400"
+                                )}
+                              >
+                                <Check size={20} strokeWidth={3} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-2 border-t border-gray-50">
@@ -2801,9 +2825,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Tipo</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.type}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, type: e.target.value })}
                     >
@@ -2814,9 +2838,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Categoria</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Categoria</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.category_id}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, category_id: e.target.value })}
                     >
@@ -2826,9 +2850,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Conta</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Conta</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.account_id}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, account_id: e.target.value })}
                     >
@@ -2838,9 +2862,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Status</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.status}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, status: e.target.value })}
                     >
@@ -2851,9 +2875,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Responsável</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Responsável</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.responsible}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, responsible: e.target.value })}
                     >
@@ -2863,13 +2887,13 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Busca</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Busca</label>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                       <input 
                         type="text"
-                        placeholder="Descrição..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                        placeholder="Pesquisar..."
+                        className="w-full pl-12 pr-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                         value={finExtractFilter.search}
                         onChange={(e) => setFinExtractFilter({ ...finExtractFilter, search: e.target.value })}
                       />
@@ -2877,9 +2901,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Ordenar Por</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Ordenar Por</label>
                     <select 
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                       value={finExtractFilter.sortBy}
                       onChange={(e) => setFinExtractFilter({ ...finExtractFilter, sortBy: e.target.value })}
                     >
@@ -2912,7 +2936,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                       showAllMonths: false,
                       sortBy: 'id'
                     })}
-                    className="text-xs font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest"
+                    className="px-4 py-2 text-[10px] font-bold text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl uppercase tracking-widest transition-all"
                   >
                     Limpar Filtros
                   </button>
@@ -3825,9 +3849,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 <button 
                   onClick={handleSaveFinTransaction}
                   disabled={!finTransactionForm.description || !finTransactionForm.amount || !finTransactionForm.category_id || !finTransactionForm.account_id}
-                  className="w-full mt-4 bg-emerald-600 text-white py-3 rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-6 bg-emerald-600 text-white py-4 rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 transform active:scale-95"
                 >
-                  <Save size={18} />
+                  <Save size={20} />
                   {editingFinTransaction ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
                 </button>
               </Card>
@@ -3861,7 +3885,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                               {isLongDescription && (
                                 <button 
                                   onClick={() => toggleTransaction(t.id)}
-                                  className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors shrink-0"
+                                  className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full hover:bg-indigo-100 transition-colors shrink-0"
                                 >
                                   {isExpanded ? 'Ver menos' : 'Ver mais'}
                                 </button>
@@ -3930,6 +3954,12 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             </motion.div>
           )}
 
+          {activeTab === 'fin_fixed' && (
+            <motion.div key="fin_fixed" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
+              <FixedAccountsManager supabase={supabaseClient!} session={session} />
+            </motion.div>
+          )}
+
           {activeTab === 'fin_settings' && (
             <motion.div key="fin_settings" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.98 }} transition={{ duration: 0.2 }}>
               <div className="mb-6 flex justify-end gap-2">
@@ -3994,29 +4024,31 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Categories */}
                 <Card title="Categorias" icon={Layers}>
-                  <div className="flex items-end gap-2 mb-6">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-6">
+                    <div className="flex-[2]">
                       <Input 
                         label="Nome da Categoria" 
+                        noMargin
                         value={finCategoryForm.name} 
                         onChange={(e: any) => setFinCategoryForm({ ...finCategoryForm, name: e.target.value })} 
                       />
                     </div>
-                    <div className="mb-4">
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo</label>
-                      <select
-                        className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all h-[42px]"
+                    <div className="flex-1">
+                      <Select
+                        label="Tipo"
                         value={finCategoryForm.type}
                         onChange={(e: any) => setFinCategoryForm({ ...finCategoryForm, type: e.target.value })}
-                      >
-                        <option value="despesa">Despesa</option>
-                        <option value="receita">Receita</option>
-                      </select>
+                        noMargin
+                        options={[
+                          { id: 'despesa', name: 'Despesa' },
+                          { id: 'receita', name: 'Receita' }
+                        ]}
+                      />
                     </div>
                     <button 
                       onClick={handleSaveFinCategory}
                       disabled={!finCategoryForm.name}
-                      className="h-[42px] mb-4 px-4 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      className="px-6 h-[48px] bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-200 flex items-center justify-center shrink-0"
                     >
                       <Plus size={20} />
                     </button>
@@ -4051,17 +4083,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                       value={finAccountForm.initial_balance} 
                       onChange={(e: any) => setFinAccountForm({ ...finAccountForm, initial_balance: e.target.value })} 
                     />
-                    <div className="mb-4">
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo</label>
-                      <select
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    <div className="mb-1">
+                      <Select
+                        label="Tipo"
                         value={finAccountForm.type}
                         onChange={(e: any) => setFinAccountForm({ ...finAccountForm, type: e.target.value })}
-                      >
-                        <option value="corrente">Conta Corrente</option>
-                        <option value="credito">Cartão de Crédito</option>
-                        <option value="dinheiro">Dinheiro</option>
-                      </select>
+                        options={[
+                          { id: 'corrente', name: 'Conta Corrente' },
+                          { id: 'credito', name: 'Cartão de Crédito' },
+                          { id: 'dinheiro', name: 'Dinheiro' }
+                        ]}
+                      />
                     </div>
 
                     {finAccountForm.type === 'credito' && (
@@ -4612,7 +4644,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
                                     {client.phone && (
                                       <span className="text-xs text-gray-500 flex items-center gap-1">
-                                        <Phone size={10} /> {client.phone}
+                                        <WhatsAppIcon size={12} className="text-emerald-500" /> {client.phone}
                                       </span>
                                     )}
                                     <span className={cn(
@@ -4800,10 +4832,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                         href={`https://wa.me/${inst.client_sales.clients.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`${getGreeting()}! Olá ${inst.client_sales.clients.name}, lembrete de vencimento da parcela ${String(inst.installment_number).padStart(2, '0')}/${String(inst.client_sales.installment_count || 1).padStart(2, '0')} referente a ${inst.client_sales.description}. Valor: R$ ${Number(inst.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Vencimento: ${formatDateString(inst.due_date)}.`)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200"
+                                        className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 shadow-sm transition-colors"
                                         title="WhatsApp"
                                       >
-                                        <Phone size={16} />
+                                        <WhatsAppIcon />
                                       </a>
                                     )}
                                   </div>
@@ -4824,7 +4856,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
 
               {activeTab === 'work_messages' && (
                 <div className="space-y-6">
-                  <Card title="Mensagem em Massa (WhatsApp)" icon={MessageSquare}>
+                  <Card title="Mensagem em Massa (WhatsApp)" icon={WhatsAppIcon}>
                     <div className="space-y-4">
                       <p className="text-sm text-gray-500">
                         Crie uma mensagem padrão para enviar aos seus clientes. Use <span className="font-bold text-indigo-600">{'{nome}'}</span> para inserir o nome do cliente automaticamente.
@@ -4881,10 +4913,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                                           ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
                                           : hasSent
                                             ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                                            : "bg-green-100 text-green-700 hover:bg-green-200"
+                                            : "bg-green-500 text-white hover:bg-green-600 shadow-sm"
                                       )}
                                     >
-                                      {hasSent ? <CheckCircle2 size={16} /> : <MessageSquare size={16} />}
+                                      {hasSent ? <CheckCircle2 size={16} /> : <WhatsAppIcon size={16} />}
                                       {hasSent ? 'Enviado' : 'Enviar Mensagem'}
                                     </a>
                                   </div>
@@ -4959,8 +4991,8 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-20 print:hidden">
-        <div className="max-w-6xl mx-auto flex justify-between w-full">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-1 pb-safe z-20 print:hidden overflow-x-auto scrollbar-hide">
+        <div className="max-w-6xl mx-auto flex justify-between w-full min-w-max sm:min-w-0">
           {activeModule === 'academic' ? (
             <>
               <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={LayoutDashboard} label="Dash" />
@@ -4973,6 +5005,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           ) : activeModule === 'financial' ? (
             <>
               <TabButton active={activeTab === 'fin_dashboard'} onClick={() => setActiveTab('fin_dashboard')} icon={LayoutDashboard} label="Dash" />
+              <TabButton active={activeTab === 'fin_fixed'} onClick={() => setActiveTab('fin_fixed')} icon={History} label="Contas Fixas" />
               <TabButton active={activeTab === 'fin_extract'} onClick={() => setActiveTab('fin_extract')} icon={Search} label="Extrato" />
               <TabButton active={activeTab === 'fin_credit'} onClick={() => setActiveTab('fin_credit')} icon={CreditCard} label="Crédito" />
               <TabButton active={activeTab === 'fin_transactions'} onClick={() => setActiveTab('fin_transactions')} icon={ArrowRightLeft} label="Lançamentos" />
@@ -4995,7 +5028,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           ) : (
             <>
               <TabButton active={activeTab === 'work_clients'} onClick={() => setActiveTab('work_clients')} icon={Users} label="Clientes" />
-              <TabButton active={activeTab === 'work_messages'} onClick={() => setActiveTab('work_messages')} icon={MessageSquare} label="Mensagens" />
+              <TabButton active={activeTab === 'work_messages'} onClick={() => setActiveTab('work_messages')} icon={WhatsAppIcon} label="Mensagens" />
               <TabButton active={activeTab === 'work_safety'} onClick={() => setActiveTab('work_safety')} icon={AlertTriangle} label="Segurança" />
             </>
           )}

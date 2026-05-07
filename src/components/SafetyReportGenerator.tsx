@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileText, MessageSquare, Download, Copy, CheckCircle2, Image as ImageIcon, X, History, Edit2, Check, Clock, AlertTriangle, Shield, User, Calendar } from 'lucide-react';
+import { Plus, Trash2, FileText, Download, Copy, CheckCircle2, Image as ImageIcon, X, History, Edit2, Check, Clock, AlertTriangle, Shield, User, Calendar } from 'lucide-react';
+import { WhatsAppIcon, getGreeting } from '../MainApp';
 import jsPDF from 'jspdf';
 import { cn } from '../lib/utils';
 
@@ -231,8 +232,7 @@ export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorPr
   };
 
   const generateMessage = () => {
-    const hour = new Date().getHours();
-    const greeting = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+    const greeting = getGreeting();
     let msg = `${greeting}! Prezados!\n\nInformo sobre o click segurança com inconformidades de:\n\n`;
     msg += `Número da Inconformidade: ${currentReport.report_number}\n`;
     msg += `Local: ${currentReport.location}\n`;
@@ -563,6 +563,16 @@ export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorPr
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                const msg = generateMessage();
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+              }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-bold text-sm shadow-sm"
+            >
+              <WhatsAppIcon size={18} />
+              Enviar
+            </button>
             <button
               onClick={copyToClipboard}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium text-sm"

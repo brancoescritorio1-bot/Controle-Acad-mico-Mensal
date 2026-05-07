@@ -205,6 +205,7 @@ export interface ChacaraBill {
   payment_date?: string;
   amount_paid?: number;
   paid_categories?: Record<string, boolean>;
+  observations?: string;
   created_at?: string;
 }
 

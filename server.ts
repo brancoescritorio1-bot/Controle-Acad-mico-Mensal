@@ -14,7 +14,10 @@ try {
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co";
+let supabaseUrlRaw = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co";
+// Sanitize URL: remove /rest/v1/ suffix if the user accidentally pasted the REST endpoint instead of the project URL
+// Also remove trailing slashes
+const supabaseUrl = supabaseUrlRaw.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
@@ -35,8 +38,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // API Routes
 app.get("/api/config", (req, res) => {
     res.json({
-      supabaseUrl: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co",
-      supabaseKey: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-"
+      supabaseUrl,
+      supabaseKey
     });
   });
 

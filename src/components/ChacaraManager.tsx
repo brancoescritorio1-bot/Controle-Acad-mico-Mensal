@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
+import { WhatsAppIcon, getGreeting } from '../MainApp';
 import { cn } from '../lib/utils';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
@@ -866,86 +867,67 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
     const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-    const hour = new Date().getHours();
-    const greeting = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 18 ? "Boa tarde" : "Boa noite";
+    const greeting = getGreeting();
     let message = `${greeting}, ${user.name}!
 Segue a conta referente à Associação Comunitária Vivendas da Serra – ${capitalizedMonth}/${year}.
 
-Data da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString('pt-BR')}`;
+Data da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+
+*Energia*`;
 
     if (hasEnergy) {
-      message += `\n\n*Energia*\n`;
       if (energyReadings.length > 1) {
         energyReadings.forEach((r, idx) => {
-          message += `Padrão ${idx + 1}:
+          message += `\n*Padrão ${idx + 1}*
 Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
 Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n\n`;
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
         });
-        message += `Consumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
+        message += `\nConsumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh`;
       } else if (energyReadings.length === 1) {
-        message += `Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR')}
+        message += `
+Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR')}
 Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR')}
-Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
-      } else {
-        // Fallback for old bills
-        const c1 = bill.curr_reading - bill.prev_reading;
-        const c2 = (bill.curr_reading_2 || 0) - (bill.prev_reading_2 || 0);
-        if (c2 > 0) {
-          message += `Padrão 1: ${Number(c1).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh
-Padrão 2: ${Number(c2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh
-Consumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
-        } else {
-          message += `Leitura anterior: ${Number(bill.prev_reading).toLocaleString('pt-BR')}
-Leitura atual: ${Number(bill.curr_reading).toLocaleString('pt-BR')}
-Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
-        }
+Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh`;
       }
-      message += `Valor do kWh: R$ ${bill.kwh_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Subtotal: R$ ${energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      message += `\nValor do kWh: R$ ${Number(bill.kwh_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    } else {
+      message += `\n(Não aplicável)`;
     }
 
+    message += `\n\n*Água*`;
     if (hasWater) {
-      message += `\n\n*Água*\n`;
       if (waterReadings.length > 1) {
         waterReadings.forEach((r, idx) => {
-          message += `Hidrômetro ${idx + 1}:
+          message += `\n*Hidrômetro ${idx + 1}*
 Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
 Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n\n`;
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
         });
-        message += `Consumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
+        message += `\nConsumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³`;
       } else if (waterReadings.length === 1) {
-        message += `Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR')}
+        message += `
+Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR')}
 Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR')}
-Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
-      } else {
-        // Fallback
-        const wc1 = (bill.water_curr_reading || 0) - (bill.water_prev_reading || 0);
-        const wc2 = (bill.water_curr_reading_2 || 0) - (bill.water_prev_reading_2 || 0);
-        if (wc2 > 0) {
-          message += `Hidrômetro 1: ${Number(wc1).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³
-Hidrômetro 2: ${Number(wc2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³
-Consumo Total Água: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
-        } else {
-          message += `Leitura anterior: ${Number(bill.water_prev_reading || 0).toLocaleString('pt-BR')}
-Leitura atual: ${Number(bill.water_curr_reading || 0).toLocaleString('pt-BR')}
-Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
-        }
+Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³`;
       }
-      message += `Valor do m³: R$ ${(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Prestador de serviço: R$ ${waterServiceFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Subtotal: R$ ${waterTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      message += `
+Valor do m³: R$ ${Number(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Prestador de serviço: R$ ${Number(waterServiceFee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    } else {
+      message += `\n(Não aplicável)`;
     }
 
-    message += `\n\nFundo de reserva: R$ ${reserveFund > 0 ? reserveFund.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}
-Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}`;
-
+    message += `\n\nFundo de reserva: R$ ${reserveFund > 0 ? Number(reserveFund).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}`;
+    message += `\nPag. Adv. e Contador: R$ ${Number(apportionment).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    
     message += `\n\n*Data de vencimento: ${new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}*`;
-    message += `\n\n*Total a pagar: R$ ${bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*`;
+    message += `\n\n*Total a pagar: R$ ${Number(bill.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*`;
 
-    if (settings.whatsapp_observation) {
-      message += `\n\nObservações: ${settings.whatsapp_observation}`;
+    if (bill.observations) {
+      message += `\n\nObservações: ${bill.observations}`;
     }
 
     const encodedMessage = encodeURIComponent(message);
@@ -1092,17 +1074,17 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                       type="text"
                       value={userForm.name}
                       onChange={e => setUserForm({ ...userForm, name: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm md:text-base font-medium"
                       placeholder="Nome do morador"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Telefone (WhatsApp)</label>
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Telefone (WhatsApp)</label>
                     <input 
                       type="text"
                       value={userForm.phone}
                       onChange={e => setUserForm({ ...userForm, phone: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm md:text-base font-medium"
                       placeholder="(00) 00000-0000"
                     />
                   </div>
@@ -1277,13 +1259,13 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                 <h2 className="text-2xl font-bold text-gray-800">Lançamento de Despesas</h2>
                 <p className="text-gray-500">Gerencie as despesas e comprovantes</p>
               </div>
-              <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-2xl border border-gray-200 shadow-sm focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                 <Filter size={18} className="text-gray-400" />
                 <input 
                   type="month" 
                   value={filterMonth}
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="bg-transparent border-none focus:ring-0 text-sm font-medium text-gray-700 outline-none"
+                  className="bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none cursor-pointer"
                 />
               </div>
             </div>
@@ -1295,49 +1277,49 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Mês de Referência</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Mês de Referência</label>
                   <input 
                     type="month"
                     value={expenseForm.month_reference}
                     onChange={e => setExpenseForm({ ...expenseForm, month_reference: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Data</label>
                   <input 
                     type="date"
                     value={expenseForm.date}
                     onChange={e => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor (R$)</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Valor (R$)</label>
                   <input 
                     type="number"
                     step="0.01"
                     value={expenseForm.amount || ''}
                     onChange={e => setExpenseForm({ ...expenseForm, amount: Number(e.target.value) })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 <div className="lg:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Descrição</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Descrição</label>
                   <input 
                     type="text"
                     value={expenseForm.description}
                     onChange={e => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                     placeholder="Ex: Manutenção da bomba d'água"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Categoria</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Categoria</label>
                   <select 
                     value={expenseForm.category}
                     onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                   >
                     <option value="manutencao">Manutenção</option>
                     <option value="limpeza">Limpeza</option>
@@ -1505,11 +1487,11 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Usuário</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Usuário</label>
                   <select 
                     value={billForm.user_id}
                     onChange={e => handleUserSelectForBill(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium appearance-none cursor-pointer"
                   >
                     <option value="">Selecione um usuário...</option>
                     {users.map(u => (
@@ -1518,30 +1500,30 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Mês de Referência</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Mês de Referência</label>
                   <input 
                     type="month"
                     value={billForm.month_reference}
                     onChange={e => setBillForm({ ...billForm, month_reference: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data da Leitura</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Data da Leitura</label>
                   <input 
                     type="date"
                     value={billForm.reading_date}
                     onChange={e => setBillForm({ ...billForm, reading_date: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data de Vencimento</label>
+                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Data de Vencimento</label>
                   <input 
                     type="date"
                     value={billForm.due_date}
                     onChange={e => setBillForm({ ...billForm, due_date: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
                 {showEnergy && (
@@ -1555,7 +1537,7 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                     {billForm.energy_readings.map((reading, index) => (
                       <React.Fragment key={`energy-${index}`}>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Leitura Anterior (Padrão {index + 1})</label>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Anterior (Padrão {index + 1})</label>
                           <input 
                             type="number"
                             value={reading.prev}
@@ -1564,11 +1546,11 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                               newReadings[index].prev = Number(e.target.value);
                               setBillForm({ ...billForm, energy_readings: newReadings });
                             }}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Leitura Atual (Padrão {index + 1})</label>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Atual (Padrão {index + 1})</label>
                           <input 
                             type="number"
                             value={reading.curr}
@@ -1577,19 +1559,19 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                               newReadings[index].curr = Number(e.target.value);
                               setBillForm({ ...billForm, energy_readings: newReadings });
                             }}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
                         </div>
                       </React.Fragment>
                     ))}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor do kWh (R$)</label>
+                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Valor do kWh (R$)</label>
                       <input 
                         type="number"
                         step="0.01"
                         value={billForm.kwh_value}
                         onChange={e => setBillForm({ ...billForm, kwh_value: Number(e.target.value) })}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                        className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                       />
                     </div>
                   </>
@@ -1632,7 +1614,7 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                     {billForm.water_readings.map((reading, index) => (
                       <React.Fragment key={`water-${index}`}>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Leitura Anterior Água (Hidrômetro {index + 1})</label>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Anterior Água (Hidrômetro {index + 1})</label>
                           <input 
                             type="number"
                             value={reading.prev}
@@ -1641,11 +1623,11 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                               newReadings[index].prev = Number(e.target.value);
                               setBillForm({ ...billForm, water_readings: newReadings });
                             }}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Leitura Atual Água (Hidrômetro {index + 1})</label>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Atual Água (Hidrômetro {index + 1})</label>
                           <input 
                             type="number"
                             value={reading.curr}
@@ -1654,29 +1636,29 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                               newReadings[index].curr = Number(e.target.value);
                               setBillForm({ ...billForm, water_readings: newReadings });
                             }}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
                         </div>
                       </React.Fragment>
                     ))}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Valor da Água (R$/m³)</label>
+                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Valor da Água (R$/m³)</label>
                       <input 
                         type="number"
                         step="0.01"
                         value={billForm.water_value}
                         onChange={e => setBillForm({ ...billForm, water_value: Number(e.target.value) })}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                        className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Taxa de Serviço (Água)</label>
+                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Taxa de Serviço (Água)</label>
                       <input 
                         type="number"
                         step="0.01"
                         value={billForm.water_service_fee}
                         onChange={e => setBillForm({ ...billForm, water_service_fee: Number(e.target.value) })}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                        className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                       />
                     </div>
                   </>
@@ -1950,10 +1932,10 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                             <td className="px-6 py-4 text-right space-x-1">
                               <button 
                                 onClick={() => sendWhatsApp(bill)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-all"
                                 title="Enviar WhatsApp"
                               >
-                                <MessageCircle size={18} />
+                                <WhatsAppIcon size={18} />
                               </button>
                               <button 
                                 onClick={() => handleEditBill(bill)}
@@ -2061,12 +2043,12 @@ Pag. Adv. e Contador: R$ ${apportionment > 0 ? apportionment.toLocaleString('pt-
                           
                           <button 
                             onClick={() => sendWhatsApp(bill)}
-                            className="w-full sm:w-auto p-3 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center transition-all active:bg-emerald-100"
+                            className="w-full sm:w-auto p-3 bg-green-500 text-white rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-sm"
                             title="WhatsApp"
                           >
-                            <MessageCircle size={20} className="sm:hidden mr-2" />
+                            <WhatsAppIcon size={20} className="sm:hidden mr-2" />
                             <span className="sm:hidden font-bold">WhatsApp</span>
-                            <MessageCircle size={20} className="hidden sm:block" />
+                            <WhatsAppIcon size={20} className="hidden sm:block" />
                           </button>
                         </div>
 

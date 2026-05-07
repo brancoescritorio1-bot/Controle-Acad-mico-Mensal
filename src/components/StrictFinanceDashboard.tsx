@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, Building2, Droplets, Zap, Briefcase, Users, AlertCircle, Download, Activity, X, CheckCircle2 } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Building2, Droplets, Zap, Briefcase, Users, AlertCircle, Download, Activity, X, CheckCircle2, Calendar } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -221,35 +221,46 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-8">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 rounded-xl">
+          <div className="p-3 bg-indigo-50 rounded-2xl shrink-0">
             <Activity className="text-indigo-600" size={24} />
           </div>
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900">Visão Geral</h2>
-            <p className="text-sm text-gray-500">Acompanhamento financeiro em tempo real</p>
+          <div className="min-w-0">
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight truncate">Visão Geral</h2>
+            <p className="text-xs md:text-sm text-gray-500 font-medium truncate">Acompanhamento financeiro em tempo real</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="grid grid-cols-2 lg:flex lg:items-center gap-2 group/header">
           {onRefresh && (
             <button 
               onClick={onRefresh}
-              className="p-2.5 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-bold border border-gray-200"
+              className="px-4 py-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-gray-200 active:scale-95 shadow-sm"
               title="Sincronizar com Histórico"
             >
               <TrendingUp size={18} />
-              <span className="hidden sm:inline">Atualizar</span>
+              <span>Atualizar</span>
             </button>
           )}
-          <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 flex-1 md:flex-none">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mês:</label>
-            <input
-              type="month"
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-              className="bg-transparent border-none focus:ring-0 text-base font-bold text-indigo-600 outline-none cursor-pointer w-full"
-            />
+          <div className="relative flex items-center gap-2 bg-indigo-50/70 px-4 py-3 rounded-2xl border border-indigo-100 flex-1 transition-all hover:bg-indigo-50 hover:border-indigo-200 overflow-hidden">
+            <Calendar className="text-indigo-600 shrink-0" size={16} />
+            <div className="flex flex-col min-w-0 flex-1">
+              <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 truncate">Referência</label>
+              <input
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 text-xs font-black text-indigo-700 outline-none cursor-pointer p-0 h-auto w-full month-picker-fix"
+              />
+            </div>
+            <style dangerouslySetInnerHTML={{ __html: `
+              .month-picker-fix::-webkit-calendar-picker-indicator {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                width: 100%; height: 100%;
+                opacity: 0; cursor: pointer;
+              }
+            `}} />
           </div>
         </div>
       </div>

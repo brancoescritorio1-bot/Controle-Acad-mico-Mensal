@@ -95,16 +95,16 @@ export function ResponsibleManager({ fetchWithAuth, onUpdate }: ResponsibleManag
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Nome do responsável"
-          className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none"
+          className="flex-1 px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
         />
         <button
           onClick={handleAdd}
           disabled={loading || !newName.trim()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           <Plus size={18} />
-          Adicionar
+          {loading ? 'Adicionando...' : 'Adicionar'}
         </button>
       </div>
 
