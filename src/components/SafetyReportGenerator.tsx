@@ -3,6 +3,7 @@ import { Plus, Trash2, FileText, Download, Copy, CheckCircle2, Image as ImageIco
 import { WhatsAppIcon, getGreeting } from '../MainApp';
 import jsPDF from 'jspdf';
 import { cn } from '../lib/utils';
+import { useDialog } from './DialogContext';
 
 interface NonConformity {
   id?: string;
@@ -32,6 +33,7 @@ interface SafetyReportGeneratorProps {
 }
 
 export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorProps) {
+  const { confirm, alert: dialogAlert } = useDialog();
   const [reports, setReports] = useState<SafetyReport[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -134,7 +136,7 @@ export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorPr
   };
 
   const deleteReport = async (id: string) => {
-    if (!fetchWithAuth || !window.confirm('Tem certeza que deseja excluir este relatório?')) return;
+    if (!fetchWithAuth || !(await confirm('Tem certeza que deseja excluir este relatório?', { type: 'danger' }))) return;
     setLoading(true);
     try {
       const res = await fetchWithAuth(`/api/safety/reports/${id}`, { method: 'DELETE' });

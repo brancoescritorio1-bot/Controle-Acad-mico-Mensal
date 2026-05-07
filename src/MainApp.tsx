@@ -151,6 +151,7 @@ const Select = ({ label, options, className = "", containerClassName = "", noMar
 // --- Main App ---
 
 import { ResponsibleManager } from './components/ResponsibleManager';
+import { FixedBillsManager } from './components/FixedBillsManager';
 
 import { ChacaraManager } from './components/ChacaraManager';
 import { ChacaraFinanceDashboard } from './components/ChacaraFinanceDashboard';
@@ -591,6 +592,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       }
       setPersonalTaskForm({ title: '', description: '', due_date: '', priority: 'medium', status: 'pending', eisenhower_quadrant: 'not_urgent_not_important' });
       fetchPersonalTasks();
+      dialogAlert('Tarefa salva com sucesso!', 'Sucesso');
     } catch (e) {
       console.error("Error saving personal task:", e);
     }
@@ -634,6 +636,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       setFinCategoryForm({ name: '', type: 'despesa' });
       setEditingFinCategory(null);
       fetchFinancialData();
+      dialogAlert('Categoria salva com sucesso!', 'Sucesso');
     } catch (e) {
       console.error("Error saving category:", e);
     }
@@ -668,6 +671,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       setFinAccountForm({ name: '', initial_balance: '', type: 'corrente', closing_day: '', due_day: '' });
       setEditingFinAccount(null);
       fetchFinancialData();
+      dialogAlert('Conta salva com sucesso!', 'Sucesso');
     } catch (e) {
       console.error("Error saving account:", e);
     }
@@ -725,6 +729,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       });
       setEditingFinTransaction(null);
       fetchFinancialData();
+      dialogAlert('Lançamento salvo com sucesso!', 'Sucesso');
     } catch (e) {
       console.error("Error saving transaction:", e);
       dialogAlert("Erro de conexão ao salvar lançamento.");
@@ -745,6 +750,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       });
       setEditingClientInstallment(null);
       fetchClientInstallments();
+      dialogAlert('Parcela salva com sucesso!', 'Sucesso');
     } catch (e) {
       console.error("Error saving installment:", e);
     }
@@ -896,6 +902,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         setEditingSubject(null);
         fetchSubjects();
         fetchDashboard();
+        dialogAlert('Matéria salva com sucesso!', 'Sucesso');
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar matéria: ${err.error || err.message || 'Erro desconhecido'}`);
@@ -924,6 +931,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
         setPeriodForm({ name: '' });
         setEditingPeriod(null);
         fetchPeriods();
+        dialogAlert('Período salvo com sucesso!', 'Sucesso');
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         dialogAlert(`Erro ao salvar período: ${err.error || err.message || 'Erro desconhecido'}`);
@@ -2656,6 +2664,12 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 </select>
               </div>
             </div>
+          )}
+
+          {activeTab === 'fin_fixed_bills' && (
+            <motion.div key="fin_fixed_bills" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <FixedBillsManager supabase={supabaseClient} />
+            </motion.div>
           )}
 
           {activeTab === 'fin_dashboard' && (
@@ -5001,6 +5015,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
               <TabButton active={activeTab === 'fin_extract'} onClick={() => setActiveTab('fin_extract')} icon={Search} label="Extrato" />
               <TabButton active={activeTab === 'fin_credit'} onClick={() => setActiveTab('fin_credit')} icon={CreditCard} label="Crédito" />
               <TabButton active={activeTab === 'fin_transactions'} onClick={() => setActiveTab('fin_transactions')} icon={ArrowRightLeft} label="Lançamentos" />
+              <TabButton active={activeTab === 'fin_fixed_bills'} onClick={() => setActiveTab('fin_fixed_bills')} icon={History} label="Contas Fixas" />
               <TabButton active={activeTab === 'fin_settings'} onClick={() => setActiveTab('fin_settings')} icon={Settings} label="Config" />
             </>
           ) : activeModule === 'chacara' ? (
