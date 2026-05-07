@@ -54,6 +54,13 @@ const STATUSES = ['Pendente', 'Pago', 'Retida', 'Vencida'];
 
 const WHATSAPP_NUMBER = '38999000331';
 
+const formatDate = (dateStr: string | undefined) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
 export function FixedBillsManager({ supabase }: { supabase: any }) {
   const { confirm, alert: dialogAlert } = useDialog();
   const [bills, setBills] = useState<FixedBill[]>([]);
@@ -98,7 +105,6 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
 
   const fetchData = async () => {
     setLoading(true);
-    setPayments([]); // Limpa visíveis durante o loading
     try {
       // 1. Fetch Master Bills
       const { data: billsData, error: billsError } = await supabase
@@ -625,7 +631,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
       )}
 
       {view === 'dashboard' && (
-        <div className={cn("space-y-4 md:space-y-6 transition-opacity duration-300", loading ? "opacity-40 pointer-events-none" : "opacity-100")}>
+        <div className="space-y-4 md:space-y-6">
           {/* Dashboard Summary - Optimized Grid */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
             {[
@@ -736,7 +742,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                           R$ {Number(payment.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
                         <div className="text-[8px] text-gray-400 font-black uppercase mt-1">
-                          Venc: {new Date(payment.due_date).toLocaleDateString()}
+                          Venc: {formatDate(payment.due_date)}
                         </div>
                       </div>
                       <div className="flex gap-1.5">
@@ -851,7 +857,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-[11px] font-bold text-gray-500">
-                      {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][new Date(p.due_date).getMonth()]}
+                      {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][Number(p.due_date.split('-')[1]) - 1]}
                     </td>
                     <td className="px-6 py-4 text-right text-[11px] font-black text-gray-900">
                       R$ {Number(p.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1043,7 +1049,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-indigo-500" />
                     <span className="text-xs font-black text-gray-800">
-                      {paymentForm.due_date ? new Date(paymentForm.due_date).toLocaleDateString('pt-BR') : '-'}
+                      {formatDate(paymentForm.due_date)}
                     </span>
                   </div>
                 </div>
