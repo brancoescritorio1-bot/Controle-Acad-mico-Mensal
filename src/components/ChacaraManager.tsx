@@ -1535,15 +1535,6 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Data de Vencimento</label>
-                  <input 
-                    type="date"
-                    value={billForm.due_date}
-                    onChange={e => setBillForm({ ...billForm, due_date: e.target.value })}
-                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
-                  />
-                </div>
                 {showEnergy && (
                   <>
                     <div className="col-span-full border-t border-gray-100 pt-4 mt-2">

@@ -3727,12 +3727,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                     value={finTransactionForm.date} 
                     onChange={(e: any) => setFinTransactionForm({ ...finTransactionForm, date: e.target.value })} 
                   />
-                  <Input 
-                    label="Data de Vencimento" 
-                    type="date" 
-                    value={finTransactionForm.due_date} 
-                    onChange={(e: any) => setFinTransactionForm({ ...finTransactionForm, due_date: e.target.value })} 
-                  />
                   <div className="mb-4">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
                     <select

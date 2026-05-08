@@ -1137,24 +1137,13 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
               </div>
 
               {/* Date Information Row */}
-              <div className="grid grid-cols-2 gap-px bg-gray-100 border-b border-gray-100">
-                <div className="bg-white p-4">
-                  <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vencimento</span>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-indigo-500" />
-                    <span className="text-xs font-black text-gray-800">
-                      {formatDate(paymentForm.due_date)}
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-white p-4">
-                  <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Ref. Mensal</span>
-                  <div className="flex items-center gap-2">
-                    <History size={14} className="text-amber-500" />
-                    <span className="text-xs font-black text-gray-800">
-                      {paymentForm.reference_month}
-                    </span>
-                  </div>
+              <div className="bg-white p-4 border-b border-gray-100">
+                <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Ref. Mensal</span>
+                <div className="flex items-center gap-2">
+                  <History size={14} className="text-amber-500" />
+                  <span className="text-xs font-black text-gray-800">
+                    {paymentForm.reference_month}
+                  </span>
                 </div>
               </div>
 
