@@ -28,6 +28,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { WhatsAppIcon } from '../MainApp';
 import { useDialog } from './DialogContext';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 
 interface FixedBill {
   id: string;
@@ -62,7 +64,7 @@ const formatDate = (dateStr: string | undefined) => {
 };
 
 export function FixedBillsManager({ supabase }: { supabase: any }) {
-  const { confirm, alert: dialogAlert } = useDialog();
+  const { confirm, alert: dialogAlert, askOptions } = useDialog();
   const [bills, setBills] = useState<FixedBill[]>([]);
   const [payments, setPayments] = useState<BillPayment[]>([]);
   const [historyPayments, setHistoryPayments] = useState<BillPayment[]>([]);
@@ -242,6 +244,15 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     }
   };
 
+  const filteredHistoryPayments = useMemo(() => {
+    return historyPayments.filter(p => {
+      if (filterCategory !== 'all' && p.bill?.category !== filterCategory) return false;
+      if (filterProperty !== 'all' && p.bill?.property !== filterProperty) return false;
+      if (filterStatus !== 'all' && p.status !== filterStatus) return false;
+      return true;
+    });
+  }, [historyPayments, filterCategory, filterProperty, filterStatus]);
+
   const historyByMonth = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({
       month: i + 1,
@@ -251,7 +262,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
       name: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][i]
     }));
 
-    historyPayments.forEach(p => {
+    filteredHistoryPayments.forEach(p => {
       const m = new Date(p.due_date).getMonth();
       months[m].total += Number(p.amount);
       if (p.status === 'Pago') months[m].paid += Number(p.amount);
@@ -259,7 +270,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     });
 
     return months;
-  }, [historyPayments]);
+  }, [filteredHistoryPayments]);
 
   const seedDefaultBills = async () => {
     const defaults = [
@@ -540,6 +551,50 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     }
   };
 
+  const generatePDF = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    
+    if (!orientation) return;
+
+    const input = document.getElementById('printable-dashboard');
+    if (!input) {
+      await dialogAlert('Erro ao localizar o painel.', 'Erro');
+      return;
+    }
+    
+    // Pequeno delay para garantir que componentes visuais (SVG/Charts) estejam prontos
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      const imgData = await toPng(input, { 
+        quality: 0.95,
+        backgroundColor: '#f9fafb',
+        pixelRatio: 2
+      });
+      const img = new Image();
+      img.src = imgData;
+      await new Promise(resolve => img.onload = resolve);
+      
+      const pdf = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (img.height * pdfWidth) / img.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}.pdf`);
+      await dialogAlert('PDF gerado com sucesso!', 'Sucesso');
+    } catch (err) {
+      console.error(err);
+      await dialogAlert('Erro ao gerar PDF', 'Erro');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 max-w-full overflow-hidden">
       {/* Header with Navigation - Optimized for Mobile */}
@@ -648,16 +703,26 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
             </select>
           </div>
 
-          <button 
-             onClick={generateWhatsAppMessage}
-             className="shrink-0 flex items-center justify-center gap-2 w-full md:w-auto px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95"
-          >
-             <WhatsAppIcon size={14} />
-             <span>Compartilhar</span>
-          </button>
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0 flex-wrap md:flex-nowrap">
+            <button 
+               onClick={generateWhatsAppMessage}
+               className="flex items-center justify-center gap-2 flex-1 md:flex-none px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95"
+            >
+               <WhatsAppIcon size={14} />
+               <span>Compartilhar</span>
+            </button>
+            <button 
+               onClick={generatePDF}
+               className="flex items-center justify-center gap-2 flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95"
+            >
+               <FileText size={14} />
+               <span>PDF</span>
+            </button>
+          </div>
         </div>
       )}
 
+      <div id="printable-dashboard" className="space-y-4 md:space-y-6">
       {view === 'dashboard' && (
         <div className="space-y-4 md:space-y-6">
           {/* Dashboard Summary - Optimized Grid */}
@@ -876,7 +941,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {historyPayments.map((p, idx) => (
+                {filteredHistoryPayments.map((p, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -902,6 +967,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
           </div>
         </div>
       )}
+      </div>
 
       {view === 'register' && (
         <div className="space-y-6">

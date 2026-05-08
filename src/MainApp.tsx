@@ -57,7 +57,7 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Subject, Attendance, Activities, WebContent, DashboardData, Period, FinancialCategory, FinancialAccount, FinancialTransaction, Client, ClientSale, ClientInstallment, PersonalTask } from './types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
 
@@ -171,7 +171,7 @@ export const WhatsAppIcon = ({ size = 20, className = "" }: { size?: number, cla
 );
 
 export default function MainApp({ onLogout, session, supabaseClient }: { onLogout: () => void, session: Session | null, supabaseClient: SupabaseClient | null }) {
-  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -1009,8 +1009,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     }
   }, [selectedSubjectId]);
 
-  const exportAcademicPDF = () => {
-    const doc = new jsPDF();
+  const exportAcademicPDF = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     doc.text("Relatório Acadêmico Mensal", 14, 15);
     
     const tableData = dashboardData.map(item => {
@@ -1075,8 +1084,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     XLSX.writeFile(wb, "relatorio_academico.xlsx");
   };
 
-  const exportClientReport = () => {
-    const doc = new jsPDF();
+  const exportClientReport = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     const monthYear = new Date(finFilter.year, finFilter.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
     doc.text(`Relatório de Clientes - ${monthYear}`, 14, 15);
 
@@ -1109,7 +1127,16 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   };
 
   const exportFinancialDashboardPDF = async () => {
-    const doc = new jsPDF();
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][finFilter.month];
     const title = `Relatório Financeiro - ${monthName} ${finFilter.year}`;
     
@@ -1192,8 +1219,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     const chartContainer = document.getElementById('expenses-pie-chart-container');
     if (chartContainer) {
       try {
-        const canvas = await html2canvas(chartContainer, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
         
         // Calculate dimensions to fit page width
         const pdfWidth = doc.internal.pageSize.getWidth();
@@ -3303,8 +3329,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                               <div className="flex gap-2 w-full md:w-auto">
                                 <button
                                   id="btn-export-fin-credit"
-                                  onClick={() => {
-                                    const doc = new jsPDF();
+                                  onClick={async () => {
+                                    const orientation = await askOptions({
+                                      title: 'Formato do PDF',
+                                      message: 'Como você deseja gerar este arquivo PDF?',
+                                      options: [
+                                        { label: 'Vertical (Retrato)', value: 'p' },
+                                        { label: 'Horizontal (Paisagem)', value: 'l' }
+                                      ]
+                                    });
+                                    if (!orientation) return;
+                                    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
                                     doc.text(`Relatório de Parcelas - ${cardName}`, 14, 15);
                                     doc.setFontSize(10);
                                     doc.text(`Período: ${invoiceStart?.toLocaleDateString()} a ${invoiceEnd?.toLocaleDateString()}`, 14, 22);

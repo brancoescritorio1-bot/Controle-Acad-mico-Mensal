@@ -13,7 +13,7 @@ interface ChacaraAccountabilityManagerProps {
 }
 
 export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManagerProps> = ({ fetchWithAuth, supabaseClient }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const [monthReference, setMonthReference] = useState(new Date().toISOString().slice(0, 7));
   const [accountability, setAccountability] = useState<ChacaraAccountability | null>(null);
   const [expenses, setExpenses] = useState<ChacaraExpense[]>([]);
@@ -246,10 +246,20 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!accountability) return;
 
-    const doc = new jsPDF();
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     
     // Header
     doc.setFillColor(79, 70, 229);

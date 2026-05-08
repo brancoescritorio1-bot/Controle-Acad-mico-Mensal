@@ -33,7 +33,7 @@ interface SafetyReportGeneratorProps {
 }
 
 export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorProps) {
-  const { confirm, alert: dialogAlert } = useDialog();
+  const { confirm, alert: dialogAlert, askOptions } = useDialog();
   const [reports, setReports] = useState<SafetyReport[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -272,7 +272,16 @@ export function SafetyReportGenerator({ fetchWithAuth }: SafetyReportGeneratorPr
   };
 
   const generatePDF = async () => {
-    const doc = new jsPDF();
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     const margin = 14;
     let y = 20;
 

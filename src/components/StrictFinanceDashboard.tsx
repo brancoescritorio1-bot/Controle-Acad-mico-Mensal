@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Wallet, TrendingUp, TrendingDown, Building2, Droplets, Zap, Briefcase, Users, AlertCircle, Download, Activity, X, CheckCircle2, Calendar } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useDialog } from './DialogContext';
+import { cn } from '../lib/utils';
 
 export interface Lancamento {
   id: string;
@@ -23,6 +25,7 @@ interface StrictFinanceDashboardProps {
 }
 
 export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ lancamentos, filterMonth, setFilterMonth, onRefresh }) => {
+  const { askOptions } = useDialog();
   const [selectedCategory, setSelectedCategory] = useState<{id: string, title: string} | null>(null);
   const [showComparison, setShowComparison] = useState(false);
 
@@ -131,8 +134,17 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
     };
   }, [lancamentos, filterMonth]);
 
-  const handleDownloadComparisonPDF = () => {
-    const doc = new jsPDF('landscape');
+  const handleDownloadComparisonPDF = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     
     doc.setFontSize(16);
     doc.text(`Comparativo Geral de Categorias - ${filterMonth}`, 14, 15);
@@ -285,8 +297,17 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Despesas Pagas</p>
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  const doc = new jsPDF();
+                onClick={async () => {
+                  const orientation = await askOptions({
+                    title: 'Formato do PDF',
+                    message: 'Como você deseja gerar este arquivo PDF?',
+                    options: [
+                      { label: 'Vertical (Retrato)', value: 'p' },
+                      { label: 'Horizontal (Paisagem)', value: 'l' }
+                    ]
+                  });
+                  if (!orientation) return;
+                  const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
                   const filteredExps = lancamentos.filter(l => l.tipo === 'despesa' && l.mes_referencia === filterMonth);
                   doc.setFontSize(18);
                   doc.text(`Relatório de Despesas - ${filterMonth}`, 14, 22);

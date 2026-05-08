@@ -43,7 +43,7 @@ interface ChacaraManagerProps {
 }
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -713,8 +713,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     }
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
+  const exportToPDF = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     
     doc.setFontSize(18);
     doc.text('Relatório de Energia - Chácara Vivendas da Serra', 14, 20);
@@ -1376,8 +1385,17 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
               <div className="p-6 border-b border-gray-50 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-800">Despesas do Mês</h3>
                 <button
-                  onClick={() => {
-                    const doc = new jsPDF();
+                  onClick={async () => {
+                    const orientation = await askOptions({
+                      title: 'Formato do PDF',
+                      message: 'Como você deseja gerar este arquivo PDF?',
+                      options: [
+                        { label: 'Vertical (Retrato)', value: 'p' },
+                        { label: 'Horizontal (Paisagem)', value: 'l' }
+                      ]
+                    });
+                    if (!orientation) return;
+                    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
                     const filteredExps = expenses.filter(e => e.month_reference === filterMonth);
                     
                     doc.setFontSize(18);

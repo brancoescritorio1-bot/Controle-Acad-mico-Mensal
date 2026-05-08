@@ -15,7 +15,7 @@ interface ChacaraFinanceDashboardProps {
 }
 
 export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = ({ bills, expenses = [], onUpdate, fetchWithAuth, filterMonth, setFilterMonth }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -129,6 +129,16 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
   };
 
   const handleExport = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+
     if (!dashboardRef.current) return;
     
     try {
@@ -153,7 +163,7 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
       });
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: orientation as 'p'|'l',
         unit: 'mm',
         format: 'a4'
       });
