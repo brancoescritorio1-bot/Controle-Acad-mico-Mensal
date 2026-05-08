@@ -685,14 +685,11 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const handleSaveFinTransaction = async () => {
     try {
       let payload = { ...finTransactionForm };
-      
-      // Auto-calculate due_date for credit cards if not manually provided
-      if (payload.account_id && !payload.due_date) {
-        const account = finAccounts.find(a => String(a.id) === String(payload.account_id));
-        if (account && account.type === 'credito' && account.closing_day && account.due_day) {
-          payload.due_date = calculateDueDate(payload.date, Number(account.closing_day), Number(account.due_day));
-        }
+      if (payload.due_date === '') {
+        payload.due_date = null as any;
       }
+      
+
 
       let res;
       if (editingFinTransaction) {
