@@ -30,6 +30,7 @@ import { WhatsAppIcon } from '../MainApp';
 import { useDialog } from './DialogContext';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface FixedBill {
   id: string;
@@ -886,29 +887,25 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
               Histórico Anual {filterMode === 'year' ? filterYear : filterMonth.split('-')[0]}
             </h3>
             
-            {/* Simple Bar Chart */}
-            <div className="flex items-end justify-between h-48 gap-1 md:gap-2 px-2 border-b border-gray-50 mb-8">
-              {historyByMonth.map((m, idx) => {
-                const max = Math.max(...historyByMonth.map(x => x.total)) || 1;
-                const height = (m.total / max) * 100;
-                return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-2 group relative">
-                    <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[9px] font-bold px-2 py-1 rounded shadow-xl pointer-events-none z-10 whitespace-nowrap">
-                      R$ {m.total.toLocaleString('pt-BR')}
-                    </div>
-                    <div 
-                      className="w-full bg-indigo-50 rounded-t-lg transition-all hover:bg-indigo-200 cursor-pointer relative overflow-hidden" 
-                      style={{ height: `${height}%`, minHeight: m.total > 0 ? '4px' : '0px' }}
-                    >
-                      <div 
-                        className="absolute bottom-0 left-0 right-0 bg-emerald-400 transition-all"
-                        style={{ height: m.total > 0 ? `${(m.paid / m.total) * 100}%` : '0%' }}
-                      />
-                    </div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase">{m.name}</span>
-                  </div>
-                );
-              })}
+
+            {/* Recharts Bar Chart */}
+            <div className="h-64 mb-8">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={historyByMonth}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" fontSize={10} />
+                  <YAxis fontSize={10} />
+                  <Tooltip 
+                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Total']}
+                    cursor={{fill: '#f3f4f6'}}
+                  />
+                  <Bar dataKey="total" fill="#e0e7ff" radius={[4, 4, 0, 0]}>
+                    {historyByMonth.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.total > 0 ? '#6366f1' : '#e0e7ff'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

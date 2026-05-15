@@ -592,12 +592,11 @@ app.get("/api/config", (req, res) => {
   // --- Financial Module Routes ---
 
   // Categories
-  app.get("/api/finance/categories", async (req, res) => {
+  app.get("/api/finance/categories", async (req, res) => { try { 
     const user = (req as any).user;
     const { data, error } = await supabase.from("financial_categories").select("*").eq("user_id", user.id);
     if (error) return res.status(500).json(error);
-    res.json(data || []);
-  });
+     res.json(data || []); } catch (err: any) { res.status(500).json({ error: err.message }); } });
 
   app.post("/api/finance/categories", async (req, res) => {
     const user = (req as any).user;
@@ -623,12 +622,11 @@ app.get("/api/config", (req, res) => {
   });
 
   // Accounts
-  app.get("/api/finance/accounts", async (req, res) => {
+  app.get("/api/finance/accounts", async (req, res) => { try { 
     const user = (req as any).user;
     const { data, error } = await supabase.from("financial_accounts").select("*").eq("user_id", user.id);
     if (error) return res.status(500).json(error);
-    res.json(data || []);
-  });
+     res.json(data || []); } catch (err: any) { res.status(500).json({ error: err.message }); } });
 
   app.post("/api/finance/accounts", async (req, res) => {
     const user = (req as any).user;
@@ -667,12 +665,11 @@ app.get("/api/config", (req, res) => {
   });
 
   // Responsibles
-  app.get("/api/finance/responsibles", async (req, res) => {
+  app.get("/api/finance/responsibles", async (req, res) => { try { 
     const user = (req as any).user;
     const { data, error } = await supabase.from("financial_responsibles").select("*").eq("user_id", user.id).order('name');
     if (error) return res.status(500).json(error);
-    res.json(data || []);
-  });
+     res.json(data || []); } catch (err: any) { res.status(500).json({ error: err.message }); } });
 
   app.post("/api/finance/responsibles", async (req, res) => {
     const user = (req as any).user;
@@ -690,7 +687,7 @@ app.get("/api/config", (req, res) => {
   });
 
   // Transactions
-  app.get("/api/finance/transactions", async (req, res) => {
+  app.get("/api/finance/transactions", async (req, res) => { try { 
     const user = (req as any).user;
     const { data, error } = await supabase.from("financial_transactions")
       .select(`
@@ -702,8 +699,7 @@ app.get("/api/config", (req, res) => {
       .order('date', { ascending: false });
     
     if (error) return res.status(500).json(error);
-    res.json(data || []);
-  });
+     res.json(data || []); } catch (err: any) { res.status(500).json({ error: err.message }); } });
 
   app.post("/api/finance/transactions", async (req, res) => {
     const user = (req as any).user;
@@ -1955,6 +1951,56 @@ app.get("/api/config", (req, res) => {
     res.json({ success: true });
   });
 
+  app.get("/api/work/escalas", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escalas').select('*');
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/work/escalas", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escalas').insert(req.body).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/work/escala_emails/:escalaId", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escala_emails').select('*').eq('escala_id', req.params.escalaId);
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/work/escala_emails", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escala_emails').insert(req.body).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/work/escala_emails/:id", async (req, res) => {
+    try {
+      const { error } = await supabase.from('escala_emails').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.status(204).end();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Catch-all for API routes to prevent falling through to Vite SPA
   app.use("/api", (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
@@ -1978,6 +2024,11 @@ app.get("/api/config", (req, res) => {
         res.sendFile(path.join(currentDir, "dist", "index.html"));
       });
     }
+
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error("Global Express Error:", err);
+      res.status(500).json({ error: "Internal Server Error", message: err.message, stack: err.stack });
+    });
 
     if (!process.env.VERCEL) {
       app.listen(PORT, "0.0.0.0", async () => {

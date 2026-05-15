@@ -60,6 +60,8 @@ import autoTable from 'jspdf-autotable';
 import { toPng } from 'html-to-image';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
+import { NotificationCenter } from './components/NotificationCenter';
+import { WorkEscalas } from './components/WorkEscalas';
 
 // --- Components ---
 
@@ -260,6 +262,10 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
     status: 'pending',
     eisenhower_quadrant: 'not_urgent_not_important'
   });
+  
+  // Escalas State
+  const [escalas, setEscalas] = useState<any[]>([]);
+  const [escalaEmails, setEscalaEmails] = useState<any[]>([]);
   const [clientSaleForm, setClientSaleForm] = useState({
     client_id: '',
     description: '',
@@ -473,10 +479,26 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       
       let cats = [], accs = [], trans = [], dash = null;
 
-      if (catRes.ok) cats = await catRes.json();
-      if (accRes.ok) accs = await accRes.json();
-      if (transRes.ok) trans = await transRes.json();
-      if (dashRes.ok) dash = await dashRes.json();
+      if (catRes.ok) {
+        const text = await catRes.text();
+        cats = text.startsWith('<') ? [] : JSON.parse(text);
+        if (text.startsWith('<')) console.error('catRes returned HTML:', text.slice(0, 100));
+      }
+      if (accRes.ok) {
+        const text = await accRes.text();
+        accs = text.startsWith('<') ? [] : JSON.parse(text);
+        if (text.startsWith('<')) console.error('accRes returned HTML:', text.slice(0, 100));
+      }
+      if (transRes.ok) {
+        const text = await transRes.text();
+        trans = text.startsWith('<') ? [] : JSON.parse(text);
+        if (text.startsWith('<')) console.error('transRes returned HTML:', text.slice(0, 100));
+      }
+      if (dashRes.ok) {
+        const text = await dashRes.text();
+        dash = text.startsWith('<') ? null : JSON.parse(text);
+        if (text.startsWith('<')) console.error('dashRes returned HTML:', text.slice(0, 100));
+      }
 
       setFinCategories(Array.isArray(cats) ? cats : []);
       setFinAccounts(Array.isArray(accs) ? accs : []);
@@ -513,6 +535,28 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       console.error("Error fetching personal tasks:", e);
     }
   };
+
+  const fetchEscalas = async () => {
+    try {
+      const res = await fetchWithAuth('/api/work/escalas');
+      if (res.ok) {
+        setEscalas(await res.json());
+      }
+    } catch (e) {
+      console.error("Error fetching escalas:", e);
+    }
+  };
+
+  const generateEmailMessage = (escalaName: string, month: number, year: number) => {
+    const greeting = getGreeting();
+    const date = new Date(year, month);
+    const monthName = date.toLocaleString('pt-BR', { month: 'long' });
+    
+    return `${greeting}!
+Segue escala de revezamento ${escalaName} referente ao mês de ${monthName} de ${year}.
+Informo que as escalas da GMNL já estão disponíveis no site.
+Escalas GMNL ${year}`;
+  }
 
   const fetchClients = async () => {
     try {
@@ -569,6 +613,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
       fetchClients();
       fetchClientSales();
       fetchClientInstallments();
+      if (activeModule === 'work') fetchEscalas();
     } else if (activeModule === 'personal') {
       fetchPersonalTasks();
     }
@@ -1330,33 +1375,33 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
             <div className="hidden md:flex bg-gray-100 p-1 rounded-lg items-center border border-gray-200">
               <button 
                 onClick={() => { setActiveModule('academic'); setActiveTab('dashboard'); }}
-                className={cn("px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'academic' ? "bg-white text-indigo-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'academic' ? "bg-white text-indigo-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
               >
-                Acadêmico
+                <GraduationCap size={16} /> Acadêmico
               </button>
               <button 
                 onClick={() => { setActiveModule('financial'); setActiveTab('fin_dashboard'); }}
-                className={cn("px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'financial' ? "bg-white text-emerald-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'financial' ? "bg-white text-emerald-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
               >
-                Financeiro
+                <Wallet size={16} /> Financeiro
               </button>
               <button 
                 onClick={() => { setActiveModule('chacara'); setActiveTab('chacara_main'); }}
-                className={cn("px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'chacara' ? "bg-white text-amber-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'chacara' ? "bg-white text-amber-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
               >
-                Chácara
+                <Trees size={16} /> Chácara
               </button>
               <button 
                 onClick={() => { setActiveModule('work'); setActiveTab('work_clients'); }}
-                className={cn("px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'work' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'work' ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
               >
-                Trabalho
+                <Briefcase size={16} /> Trabalho
               </button>
               <button 
                 onClick={() => { setActiveModule('personal'); setActiveTab('personal_tasks'); }}
-                className={cn("px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'personal' ? "bg-white text-purple-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-bold transition-all", activeModule === 'personal' ? "bg-white text-purple-600 shadow-sm ring-1 ring-black/5" : "text-gray-500 hover:text-gray-700")}
               >
-                Pessoal
+                <User size={16} /> Pessoal
               </button>
             </div>
           </div>
@@ -1395,6 +1440,16 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                 <User size={18} />
               </button>
             </div>
+            
+            <NotificationCenter 
+              supabase={supabaseClient} 
+              user={session?.user} 
+              dashboardData={dashboardData}
+              onNavigate={(mod, tab) => {
+                setActiveModule(mod as any);
+                setActiveTab(tab);
+              }}
+            />
 
             <button onClick={handleGlobalExport} className="p-2 text-gray-500 hover:text-indigo-600 transition-colors" title="Exportar PDF">
               <Download size={20} />
@@ -4534,6 +4589,17 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
           {activeModule === 'work' && (
             <motion.div key="work" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+                  <button 
+                    onClick={() => setActiveTab('work_clients')}
+                    className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'work_clients' ? 'text-indigo-600 bg-white shadow-sm' : 'text-gray-500')}
+                  >Clientes</button>
+                  <button 
+                    onClick={() => setActiveTab('work_escalas')}
+                    className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'work_escalas' ? 'text-indigo-600 bg-white shadow-sm' : 'text-gray-500')}
+                  >Escalas</button>
+                </div>
+                
                 <div className="flex items-center gap-2">
                   <Calendar size={20} className="text-indigo-600" />
                   <h2 className="font-bold text-gray-800 text-sm md:text-base">Filtro Mensal</h2>
@@ -4890,6 +4956,9 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
                     </div>
                   </div>
                 </>
+              )}
+              {activeTab === 'work_escalas' && (
+                <WorkEscalas fetchWithAuth={fetchWithAuth} finFilter={finFilter} />
               )}
 
               {activeTab === 'work_messages' && (

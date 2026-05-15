@@ -66,7 +66,7 @@ export default function App() {
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
-              if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+              if (key && (key.startsWith('sb-') || key.startsWith('supabase'))) {
                 keysToRemove.push(key);
               }
             }
@@ -84,7 +84,7 @@ export default function App() {
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
-              if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+              if (key && (key.startsWith('sb-') || key.startsWith('supabase'))) {
                 keysToRemove.push(key);
               }
             }
@@ -102,7 +102,7 @@ export default function App() {
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            if (key && key.startsWith('sb-')) {
               keysToRemove.push(key);
             }
           }

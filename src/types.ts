@@ -254,3 +254,17 @@ export interface PersonalTask {
   eisenhower_quadrant?: 'urgent_important' | 'not_urgent_important' | 'urgent_not_important' | 'not_urgent_not_important';
   created_at?: string;
 }
+
+export interface Escala {
+  id: number;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
+
+export interface EscalaEmail {
+  id: number;
+  escala_id: number;
+  email: string;
+  created_at?: string;
+}
