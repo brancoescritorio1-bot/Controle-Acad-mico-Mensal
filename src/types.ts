@@ -255,10 +255,21 @@ export interface PersonalTask {
   created_at?: string;
 }
 
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject_template: string;
+  body_template: string;
+  created_at?: string;
+}
+
 export interface Escala {
   id: number;
   name: string;
   description?: string;
+  email_subject_template?: string;
+  email_body_template?: string;
+  template_id?: number;
   created_at?: string;
 }
 

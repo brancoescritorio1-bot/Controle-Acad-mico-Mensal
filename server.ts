@@ -14,10 +14,11 @@ try {
 
 dotenv.config();
 
-let supabaseUrlRaw = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co";
 // Sanitize URL: remove /rest/v1/ suffix if the user accidentally pasted the REST endpoint instead of the project URL
 // Also remove trailing slashes
-const supabaseUrl = supabaseUrlRaw.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+const supabaseUrlRaw = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co";
+const supabaseUrl = supabaseUrlRaw.split('/rest/v1/')[0].replace(/\/+$/, "");
+console.log("Supabase URL initialized as:", supabaseUrl);
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
@@ -41,6 +42,10 @@ app.get("/api/config", (req, res) => {
       supabaseUrl,
       supabaseKey
     });
+  });
+
+  app.get("/api/test", (req, res) => {
+    res.json({ message: "test success" });
   });
 
   // Authentication Middleware
@@ -2001,10 +2006,66 @@ app.get("/api/config", (req, res) => {
     }
   });
 
-  // Catch-all for API routes to prevent falling through to Vite SPA
-  app.use("/api", (req, res) => {
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+  app.put("/api/work/escalas/:id", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escalas').update(req.body).eq('id', req.params.id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
+
+  app.delete("/api/work/escalas/:id", async (req, res) => {
+    try {
+      const { error } = await supabase.from('escalas').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.status(204).end();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/work/escala_emails/:id", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('escala_emails').update(req.body).eq('id', req.params.id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/work/email_templates", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('email_templates').select('*');
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/work/email_templates", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('email_templates').insert(req.body).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/work/email_templates/:id", async (req, res) => {
+    try {
+      const { error } = await supabase.from('email_templates').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.status(204).end();
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
 
   async function setupVite() {
     // Vite middleware for development
@@ -2035,7 +2096,7 @@ app.get("/api/config", (req, res) => {
         console.log(`Server running on http://localhost:${PORT}`);
         
         // Test Supabase connection and tables
-        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities"];
+        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities", "escalas", "email_templates", "clients", "client_sales", "client_installments"];
         console.log("\n🔍 Verificando tabelas no Supabase...");
         
         for (const table of tables) {
