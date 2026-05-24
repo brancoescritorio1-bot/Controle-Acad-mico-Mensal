@@ -58,6 +58,14 @@ const Card = ({ children, title, icon: Icon, className = "" }: { children: React
   </div>
 );
 
+const formatWAPhone = (phone: string) => {
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return '55' + cleaned;
+  }
+  return cleaned;
+};
+
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
   const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
@@ -958,8 +966,8 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
     }
 
     const encodedMessage = encodeURIComponent(message);
-    const phone = user.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${phone}?text=${encodedMessage}`, '_blank');
+    const phone = formatWAPhone(user.phone);
+    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   };
 
   const generateLancamentos = (): Lancamento[] => {
@@ -1128,7 +1136,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     {users.length > 0 ? (
                       users.map(user => {
                         const message = `${getGreeting()}! ` + whatsappChacaraTemplate.replace(/{nome}/g, user.name);
-                        const whatsappLink = user.phone ? `https://wa.me/${user.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}` : '#';
+                        const whatsappLink = user.phone ? `https://wa.me/${formatWAPhone(user.phone)}?text=${encodeURIComponent(message)}` : '#';
                         const hasSent = sentChacaraMessages.includes(String(user.id));
                         
                         return (
