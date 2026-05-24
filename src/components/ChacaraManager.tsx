@@ -127,7 +127,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     receipt_url: ''
   });
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
-  const [whatsappChacaraTemplate, setWhatsappChacaraTemplate] = useState('Olá {nome}, tudo bem?');
+  const [whatsappChacaraTemplate, setWhatsappChacaraTemplate] = useState(() => localStorage.getItem('whatsappChacaraTemplate') || 'Olá {nome}, tudo bem?');
   const [sentChacaraMessages, setSentChacaraMessages] = useState<string[]>([]);
 
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -1101,6 +1101,15 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm resize-y min-h-[120px]"
                     placeholder="Olá {nome}, tudo bem?"
                   />
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('whatsappChacaraTemplate', whatsappChacaraTemplate);
+                      dialogAlert('Mensagem salva como padrão!');
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    Salvar como padrão
+                  </button>
                 </div>
 
                 <div className="pt-4 border-t border-gray-100">
