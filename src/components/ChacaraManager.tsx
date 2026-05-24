@@ -111,6 +111,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     receipt_url: ''
   });
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [whatsappChacaraTemplate, setWhatsappChacaraTemplate] = useState('Olá {nome}, tudo bem?');
+  const [sentChacaraMessages, setSentChacaraMessages] = useState<string[]>([]);
 
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [searchBill, setSearchBill] = useState('');
@@ -1060,6 +1062,97 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
               setFilterMonth={setFilterMonth}
               onRefresh={fetchData}
             />
+          </motion.div>
+        )}
+        {activeTab === 'chacara_messages' && (
+          <motion.div
+            key="messages"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
+          >
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+              <div className="px-6 py-5 border-b border-gray-50 flex items-center gap-3 bg-gray-50/50">
+                <WhatsAppIcon size={20} className="text-emerald-600" />
+                <h3 className="font-bold text-gray-800 text-sm md:text-base tracking-tight uppercase">Mensagem em Massa (WhatsApp)</h3>
+              </div>
+              <div className="p-8">
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500">
+                    Crie uma mensagem padrão para enviar aos seus usuários da chácara. Use <span className="font-bold text-indigo-600">{'{nome}'}</span> para inserir o nome do usuário automaticamente.
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">Mensagem</label>
+                    <textarea
+                      value={whatsappChacaraTemplate}
+                      onChange={(e) => setWhatsappChacaraTemplate(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm resize-y min-h-[120px]"
+                      placeholder="Olá {nome}, tudo bem?"
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-bold text-gray-800">Selecione os usuários para enviar:</h4>
+                      {sentChacaraMessages.length > 0 && (
+                        <button
+                          onClick={() => setSentChacaraMessages([])}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                        >
+                          Reiniciar Envios
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {users.length > 0 ? (
+                        users.map(user => {
+                          const message = `${getGreeting()}! ` + whatsappChacaraTemplate.replace(/{nome}/g, user.name);
+                          const whatsappLink = user.phone ? `https://wa.me/${user.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}` : '#';
+                          const hasSent = sentChacaraMessages.includes(String(user.id));
+                          
+                          return (
+                            <div key={user.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
+                              <div>
+                                <h5 className="font-bold text-gray-800">{user.name}</h5>
+                                <p className="text-xs text-gray-500">{user.phone || 'Sem telefone'}</p>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <a
+                                  href={whatsappLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => {
+                                    if (user.phone && !hasSent) {
+                                      setSentChacaraMessages(prev => [...prev, String(user.id)]);
+                                    }
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-colors",
+                                    !user.phone 
+                                      ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+                                      : hasSent
+                                        ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                        : "bg-green-500 text-white hover:bg-green-600 shadow-sm"
+                                  )}
+                                >
+                                  {hasSent ? <CheckCircle2 size={16} /> : <WhatsAppIcon size={16} />}
+                                  {hasSent ? 'Enviado' : 'Enviar Mensagem'}
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-6 text-gray-400">
+                          <p>Nenhum usuário cadastrado.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
         {activeTab === 'chacara_users' && (

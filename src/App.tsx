@@ -62,7 +62,8 @@ export default function App() {
           console.error('Session error:', error.message);
           setSession(null);
           // If refresh token is invalid, clear local storage manually to prevent infinite loop
-          if (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token')) {
+          const errorMsg = (error.message || '').toLowerCase();
+          if (errorMsg.includes('refresh token') || errorMsg.includes('refresh_token')) {
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
@@ -71,6 +72,8 @@ export default function App() {
               }
             }
             keysToRemove.forEach(k => localStorage.removeItem(k));
+            window.location.reload();
+            return;
           }
           await supabaseClient!.auth.signOut().catch(() => {});
         } else {
@@ -98,15 +101,18 @@ export default function App() {
       } catch (error: any) {
         console.error('Failed to init session:', error);
         setSession(null);
-        if (error?.message?.includes('Refresh Token Not Found') || error?.message?.includes('Invalid Refresh Token')) {
+        const errorMsg = (error?.message || '').toLowerCase();
+        if (errorMsg.includes('refresh token') || errorMsg.includes('refresh_token')) {
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith('sb-')) {
+            if (key && (key.startsWith('sb-') || key.startsWith('supabase'))) {
               keysToRemove.push(key);
             }
           }
           keysToRemove.forEach(k => localStorage.removeItem(k));
+          window.location.reload();
+          return;
         }
         await supabaseClient!.auth.signOut().catch(() => {});
       } finally {

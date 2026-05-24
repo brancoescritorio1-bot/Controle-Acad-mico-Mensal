@@ -1357,7 +1357,11 @@ Escalas GMNL ${year}`;
                 activeModule === 'financial' ? "bg-emerald-600" : 
                 activeModule === 'chacara' ? "bg-amber-600" :
                 activeModule === 'personal' ? "bg-purple-600" : "bg-blue-600")}>
-                <BrainCircuit size={18} className="md:w-6 md:h-6" />
+                {activeModule === 'academic' ? <GraduationCap size={18} className="md:w-6 md:h-6" /> :
+                activeModule === 'financial' ? <Wallet size={18} className="md:w-6 md:h-6" /> :
+                activeModule === 'chacara' ? <Trees size={18} className="md:w-6 md:h-6" /> :
+                activeModule === 'personal' ? <User size={18} className="md:w-6 md:h-6" /> :
+                <Briefcase size={18} className="md:w-6 md:h-6" />}
               </div>
               <div>
                 <h1 className="font-bold text-base md:text-xl leading-tight text-gray-900 tracking-tight">
@@ -5126,6 +5130,7 @@ Escalas GMNL ${year}`;
               <TabButton active={activeTab === 'chacara_expenses'} onClick={() => setActiveTab('chacara_expenses')} icon={Banknote} label="Despesas" />
               <TabButton active={activeTab === 'chacara_main'} onClick={() => setActiveTab('chacara_main')} icon={PlusCircle} label="Lançar Conta" />
               <TabButton active={activeTab === 'chacara_history'} onClick={() => setActiveTab('chacara_history')} icon={History} label="Histórico" />
+              <TabButton active={activeTab === 'chacara_messages'} onClick={() => setActiveTab('chacara_messages')} icon={WhatsAppIcon} label="Mensagens" />
               <TabButton active={activeTab === 'chacara_users'} onClick={() => setActiveTab('chacara_users')} icon={Users} label="Usuários" />
               <TabButton active={activeTab === 'chacara_settings'} onClick={() => setActiveTab('chacara_settings')} icon={Settings} label="Config" />
             </>
