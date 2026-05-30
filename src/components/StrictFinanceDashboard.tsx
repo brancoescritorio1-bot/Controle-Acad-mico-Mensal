@@ -15,6 +15,7 @@ export interface Lancamento {
   status: 'pago' | 'pendente' | 'parcial';
   valor_pago: number;
   descricao: string;
+  is_divergent?: boolean;
 }
 
 interface StrictFinanceDashboardProps {
@@ -30,9 +31,7 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
   const [showComparison, setShowComparison] = useState(false);
 
   const getValorRecebido = (l: Lancamento) => {
-    if (l.status === 'pago') return l.valor;
-    if (l.status === 'parcial') return l.valor_pago;
-    return 0;
+    return l.valor_pago;
   };
 
   const getValorPendente = (l: Lancamento) => {

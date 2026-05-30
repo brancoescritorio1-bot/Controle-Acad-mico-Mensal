@@ -1048,7 +1048,8 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
           valor: c.val,
           status: statusCat,
           valor_pago: valorPagoCat,
-          descricao: userName
+          descricao: userName,
+          is_divergent: bill.is_divergent || false
         });
       });
     });
