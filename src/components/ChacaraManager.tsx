@@ -141,7 +141,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [searchBill, setSearchBill] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
-  const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}});
+  const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
   const [highlightedBillId, setHighlightedBillId] = useState<number | null>(null);
 
   const calculateBillCategories = (bill: ChacaraBill) => {
@@ -707,11 +707,12 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       bill, 
       date: bill.payment_date ? String(bill.payment_date).split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0],
       amountPaid: initialAmount,
-      paidCategories: initialCategories
+      paidCategories: initialCategories,
+      isDivergent: false
     });
   };
 
-  const handleConfirmToggleStatus = async (bill: ChacaraBill, newStatus: 'pending' | 'paid' | 'partial', paymentDate: string | null, amountPaid: number = 0, paidCategories: Record<string, boolean> = {}) => {
+  const handleConfirmToggleStatus = async (bill: ChacaraBill, newStatus: 'pending' | 'paid' | 'partial', paymentDate: string | null, amountPaid: number = 0, paidCategories: Record<string, boolean> = {}, isDivergent: boolean = false) => {
     try {
       const finalStatus = amountPaid === 0 ? 'pending' : (amountPaid >= bill.total - 0.01 ? 'paid' : 'partial');
       const res = await fetchWithAuth(`/api/chacara/bills/${bill.id}`, {
@@ -721,7 +722,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
           status: finalStatus,
           payment_date: paymentDate,
           amount_paid: amountPaid,
-          paid_categories: paidCategories
+          paid_categories: paidCategories,
+          is_divergent: isDivergent
         })
       });
       if (res.ok) {
@@ -2361,6 +2363,17 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                   />
                 </div>
                 
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="isDivergent"
+                    checked={paymentDateModal.isDivergent}
+                    onChange={e => setPaymentDateModal({ ...paymentDateModal, isDivergent: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="isDivergent" className="text-sm font-medium text-gray-700">Pagamento Divergente</label>
+                </div>
+
                 <div className="space-y-2 border border-gray-100 rounded-xl p-4 bg-gray-50/50">
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-3">Itens da Conta</label>
                   {paymentDateModal.bill && (() => {
@@ -2406,7 +2419,11 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     step="0.01"
                     value={paymentDateModal.amountPaid}
                     onChange={e => setPaymentDateModal({ ...paymentDateModal, amountPaid: Number(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                    disabled={!paymentDateModal.isDivergent}
+                    className={cn(
+                      "w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold transition-all",
+                      !paymentDateModal.isDivergent && "opacity-50 cursor-not-allowed"
+                    )}
                   />
                   <p className="text-xs text-gray-500 mt-1">Total da conta: R$ {paymentDateModal.bill?.total?.toFixed(2) || '0.00'}</p>
                 </div>
@@ -2421,7 +2438,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     Fechar
                   </button>
                   <button 
-                    onClick={() => handleConfirmToggleStatus(paymentDateModal.bill!, 'paid', paymentDateModal.date, paymentDateModal.amountPaid, paymentDateModal.paidCategories)}
+                    onClick={() => handleConfirmToggleStatus(paymentDateModal.bill!, 'paid', paymentDateModal.date, paymentDateModal.amountPaid, paymentDateModal.paidCategories, paymentDateModal.isDivergent)}
                     className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200"
                   >
                     Confirmar
