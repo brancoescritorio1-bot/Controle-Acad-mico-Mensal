@@ -2405,8 +2405,8 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     type="number" 
                     step="0.01"
                     value={paymentDateModal.amountPaid}
-                    readOnly
-                    className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 outline-none font-bold cursor-not-allowed"
+                    onChange={e => setPaymentDateModal({ ...paymentDateModal, amountPaid: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
                   />
                   <p className="text-xs text-gray-500 mt-1">Total da conta: R$ {paymentDateModal.bill?.total?.toFixed(2) || '0.00'}</p>
                 </div>
