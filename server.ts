@@ -1279,7 +1279,7 @@ app.get("/api/config", (req, res) => {
       water_prev_reading, water_curr_reading, water_prev_reading_2, water_curr_reading_2, water_value, water_service_fee,
       apportionment_value, include_apportionment,
       reserve_fund, total, include_reserve_fund, status, payment_date, amount_paid,
-      energy_readings, water_readings, paid_categories, is_divergent
+      energy_readings, water_readings, paid_categories, is_divergent, observations
     } = req.body;
     
     // 1. Create Bill
@@ -1311,7 +1311,8 @@ app.get("/api/config", (req, res) => {
       energy_readings: energy_readings || [],
       water_readings: water_readings || [],
       paid_categories: paid_categories || {},
-      is_divergent: !!is_divergent
+      is_divergent: !!is_divergent,
+      observations: observations || ''
     }]).select().single();
 
     if (billError) return res.status(500).json(billError);
@@ -1337,7 +1338,7 @@ app.get("/api/config", (req, res) => {
       water_prev_reading, water_curr_reading, water_prev_reading_2, water_curr_reading_2, water_value, water_service_fee,
       apportionment_value, include_apportionment,
       reserve_fund, total, include_reserve_fund, status, payment_date, amount_paid,
-      energy_readings, water_readings, paid_categories, is_divergent
+      energy_readings, water_readings, paid_categories, is_divergent, observations
     } = req.body;
     
     const { error } = await supabase.from("chacara_bills").update({
@@ -1367,7 +1368,8 @@ app.get("/api/config", (req, res) => {
       energy_readings: energy_readings || [],
       water_readings: water_readings || [],
       paid_categories: paid_categories || {},
-      is_divergent: !!is_divergent
+      is_divergent: !!is_divergent,
+      observations: observations || ''
     }).eq("id", req.params.id).eq("user_id", user.id);
 
     if (error) return res.status(500).json(error);

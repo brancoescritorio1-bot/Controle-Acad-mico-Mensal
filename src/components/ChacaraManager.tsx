@@ -122,7 +122,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     status: 'pending' as 'pending' | 'paid',
     payment_date: '',
     energy_readings: [] as { prev: number; curr: number }[],
-    water_readings: [] as { prev: number; curr: number }[]
+    water_readings: [] as { prev: number; curr: number }[],
+    observations: ''
   });
   const [editingBill, setEditingBill] = useState<ChacaraBill | null>(null);
   
@@ -390,7 +391,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       status: 'pending',
       payment_date: '',
       energy_readings: [],
-      water_readings: []
+      water_readings: [],
+      observations: ''
     });
     setEditingBill(null);
   };
@@ -668,7 +670,8 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       status: bill.status || 'pending',
       payment_date: bill.payment_date ? String(bill.payment_date).split('T')[0].split(' ')[0] : '',
       energy_readings: energyReadings,
-      water_readings: waterReadings
+      water_readings: waterReadings,
+      observations: bill.observations || ''
     });
     // Change tab to main to show the form
     if (setActiveTab) {
@@ -967,6 +970,10 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
       message += `\n\nObservações: ${bill.observations}`;
     }
 
+    if (settings.whatsapp_observation) {
+      message += `\n\n${settings.whatsapp_observation}`;
+    }
+
     const encodedMessage = encodeURIComponent(message);
     const phone = formatWAPhone(user.phone);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
@@ -1101,7 +1108,7 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
             <Card title="Mensagem em Massa (WhatsApp)" icon={WhatsAppIcon}>
               <div className="space-y-4">
                 <p className="text-sm text-gray-500">
-                  Crie uma mensagem padrão para enviar aos seus usuários da chácara. Use <span className="font-bold text-indigo-600">{'{nome}'}</span> para inserir o nome do usuário automaticamente.
+                  Crie uma mensagem padrão para enviar aos seus usuários da chácara. Use <span className="font-bold text-indigo-600">{'{nome}'}</span> e <span className="font-bold text-indigo-600">{'{observacoes}'}</span> para inserir as informações automaticamente.
                 </p>
                 
                 <div className="space-y-2">
@@ -1138,7 +1145,10 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                   <div className="space-y-3">
                     {users.length > 0 ? (
                       users.map(user => {
-                        const message = `${getGreeting()}! ` + whatsappChacaraTemplate.replace(/{nome}/g, user.name);
+                        const userBill = bills.find(b => Number(b.chacara_user_id) === user.id);
+                        const message = `${getGreeting()}! ` + whatsappChacaraTemplate
+                          .replace(/{nome}/g, user.name)
+                          .replace(/{observacoes}/g, userBill?.observations || '');
                         const whatsappLink = user.phone ? `https://wa.me/${formatWAPhone(user.phone)}?text=${encodeURIComponent(message)}` : '#';
                         const hasSent = sentChacaraMessages.includes(String(user.id));
                         
@@ -1827,6 +1837,16 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                     </div>
                     <span className="text-sm font-semibold text-gray-600 group-hover:text-indigo-600 transition-all">Incluir Pag. Adv. e Cont.?</span>
                   </label>
+                </div>
+
+                <div className="col-span-full mt-4">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Observações da Fatura</label>
+                  <textarea 
+                    value={billForm.observations}
+                    onChange={e => setBillForm({ ...billForm, observations: e.target.value })}
+                    className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium min-h-[100px]"
+                    placeholder="Adicione observações que aparecerão na mensagem de WhatsApp..."
+                  />
                 </div>
               </div>
 
