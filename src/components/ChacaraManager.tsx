@@ -698,18 +698,22 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         fetchData();
         if (onDataUpdate) onDataUpdate();
         
-        const willView = await dialogConfirm(wasEditing ? 'Conta atualizada com sucesso! Deseja visualizar o extrato para PDF?' : 'Conta lançada com sucesso! Deseja visualizar o extrato para PDF?');
+        const choice = await askOptions({
+          title: 'Conta Salva',
+          message: wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!',
+          options: [
+            { label: 'Visualizar Extrato (PDF)', value: 'pdf' },
+            { label: 'Enviar WhatsApp', value: 'whatsapp' },
+            { label: 'Apenas salvar e continuar', value: 'continue' }
+          ]
+        });
         
-        if (willView) {
+        if (choice === 'pdf') {
           setInvoiceDetailsModal({ isOpen: true, bill: savedBill });
-        } else {
-          // Automate WhatsApp sending only if not viewing PDF (to avoid popups overlap if any)
+        } else if (choice === 'whatsapp') {
           sendWhatsApp(savedBill);
         }
         
-        if (setActiveTab) {
-          setActiveTab('chacara_history');
-        }
         setHighlightedBillId(targetId);
       } else {
         const errorData = await res.json().catch(() => ({ message: res.statusText }));
