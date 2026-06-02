@@ -919,16 +919,16 @@ Data da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString(
       if (energyReadings.length > 1) {
         energyReadings.forEach((r, idx) => {
           message += `\n*Padrão ${idx + 1}*
-Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh\n`;
         });
-        message += `\nConsumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
+        message += `\nConsumo Total: ${Number(consumption).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh`;
       } else if (energyReadings.length === 1) {
         message += `
-Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
+Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Consumo: ${Number(consumption).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh`;
       }
       message += `\nValor do kWh: R$ ${Number(bill.kwh_value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -941,16 +941,16 @@ Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigi
       if (waterReadings.length > 1) {
         waterReadings.forEach((r, idx) => {
           message += `\n*Hidrômetro ${idx + 1}*
-Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³\n`;
         });
-        message += `\nConsumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
+        message += `\nConsumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³`;
       } else if (waterReadings.length === 1) {
         message += `
-Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
+Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³`;
       }
       message += `
 Valor do m³: R$ ${Number(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1682,12 +1682,16 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Anterior (Padrão {index + 1})</label>
                           <input 
                             type="number"
+                            step="any"
                             value={reading.prev}
                             onChange={e => {
-                              const newReadings = billForm.energy_readings.map((r, i) => 
-                                i === index ? { ...r, prev: Number(e.target.value) } : r
-                              );
-                              setBillForm({ ...billForm, energy_readings: newReadings });
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              setBillForm(prev => {
+                                const newReadings = prev.energy_readings.map((r, i) => 
+                                  i === index ? { ...r, prev: val } : r
+                                );
+                                return { ...prev, energy_readings: newReadings };
+                              });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
@@ -1696,12 +1700,16 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Atual (Padrão {index + 1})</label>
                           <input 
                             type="number"
+                            step="any"
                             value={reading.curr}
                             onChange={e => {
-                              const newReadings = billForm.energy_readings.map((r, i) => 
-                                i === index ? { ...r, curr: Number(e.target.value) } : r
-                              );
-                              setBillForm({ ...billForm, energy_readings: newReadings });
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              setBillForm(prev => {
+                                const newReadings = prev.energy_readings.map((r, i) => 
+                                  i === index ? { ...r, curr: val } : r
+                                );
+                                return { ...prev, energy_readings: newReadings };
+                              });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
@@ -1761,12 +1769,16 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Anterior Água (Hidrômetro {index + 1})</label>
                           <input 
                             type="number"
+                            step="any"
                             value={reading.prev}
                             onChange={e => {
-                              const newReadings = billForm.water_readings.map((r, i) => 
-                                i === index ? { ...r, prev: Number(e.target.value) } : r
-                              );
-                              setBillForm({ ...billForm, water_readings: newReadings });
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              setBillForm(prev => {
+                                const newReadings = prev.water_readings.map((r, i) => 
+                                  i === index ? { ...r, prev: val } : r
+                                );
+                                return { ...prev, water_readings: newReadings };
+                              });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
@@ -1775,12 +1787,16 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Leitura Atual Água (Hidrômetro {index + 1})</label>
                           <input 
                             type="number"
+                            step="any"
                             value={reading.curr}
                             onChange={e => {
-                              const newReadings = billForm.water_readings.map((r, i) => 
-                                i === index ? { ...r, curr: Number(e.target.value) } : r
-                              );
-                              setBillForm({ ...billForm, water_readings: newReadings });
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              setBillForm(prev => {
+                                const newReadings = prev.water_readings.map((r, i) => 
+                                  i === index ? { ...r, curr: val } : r
+                                );
+                                return { ...prev, water_readings: newReadings };
+                              });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
                           />
