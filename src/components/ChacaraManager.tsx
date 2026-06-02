@@ -919,19 +919,19 @@ Data da leitura: ${new Date(bill.reading_date + 'T12:00:00').toLocaleDateString(
       if (energyReadings.length > 1) {
         energyReadings.forEach((r, idx) => {
           message += `\n*Padrão ${idx + 1}*
-Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
-Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh\n`;
         });
-        message += `\nConsumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh`;
+        message += `\nConsumo Total: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
       } else if (energyReadings.length === 1) {
         message += `
-Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR')}
-Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR')}
-Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kWh`;
+Leitura anterior: ${Number(energyReadings[0].prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Leitura atual: ${Number(energyReadings[0].curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Consumo: ${Number(consumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh`;
       }
-      message += `\nValor do kWh: R$ ${Number(bill.kwh_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      message += `\nValor do kWh: R$ ${Number(bill.kwh_value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } else {
       message += `\n(Não aplicável)`;
     }
@@ -941,30 +941,30 @@ Subtotal: R$ ${Number(energyTotal).toLocaleString('pt-BR', { minimumFractionDigi
       if (waterReadings.length > 1) {
         waterReadings.forEach((r, idx) => {
           message += `\n*Hidrômetro ${idx + 1}*
-Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR')}
-Leitura atual: ${Number(r.curr).toLocaleString('pt-BR')}
-Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³\n`;
+Leitura anterior: ${Number(r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Leitura atual: ${Number(r.curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Consumo: ${Number(r.curr - r.prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³\n`;
         });
-        message += `\nConsumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³`;
+        message += `\nConsumo Total: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
       } else if (waterReadings.length === 1) {
         message += `
-Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR')}
-Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR')}
-Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m³`;
+Leitura anterior: ${Number(waterReadings[0].prev).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Leitura atual: ${Number(waterReadings[0].curr).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Consumo: ${Number(waterConsumption).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³`;
       }
       message += `
-Valor do m³: R$ ${Number(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Prestador de serviço: R$ ${Number(waterServiceFee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+Valor do m³: R$ ${Number(bill.water_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Prestador de serviço: R$ ${Number(waterServiceFee).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     } else {
       message += `\n(Não aplicável)`;
     }
 
-    message += `\n\nFundo de reserva: R$ ${reserveFund > 0 ? Number(reserveFund).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ' — '}`;
-    message += `\nPag. Adv. e Contador: R$ ${Number(apportionment).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    message += `\n\nFundo de reserva: R$ ${reserveFund > 0 ? Number(reserveFund).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ' — '}`;
+    message += `\nPag. Adv. e Contador: R$ ${Number(apportionment).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     
     message += `\n\n*Data de vencimento: ${new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}*`;
-    message += `\n\n*Total a pagar: R$ ${Number(bill.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*`;
+    message += `\n\n*Total a pagar: R$ ${Number(bill.total).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*`;
 
     if (bill.observations) {
       message += `\n\nObservações: ${bill.observations}`;
@@ -1684,8 +1684,9 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                             type="number"
                             value={reading.prev}
                             onChange={e => {
-                              const newReadings = [...billForm.energy_readings];
-                              newReadings[index].prev = Number(e.target.value);
+                              const newReadings = billForm.energy_readings.map((r, i) => 
+                                i === index ? { ...r, prev: Number(e.target.value) } : r
+                              );
                               setBillForm({ ...billForm, energy_readings: newReadings });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
@@ -1697,8 +1698,9 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                             type="number"
                             value={reading.curr}
                             onChange={e => {
-                              const newReadings = [...billForm.energy_readings];
-                              newReadings[index].curr = Number(e.target.value);
+                              const newReadings = billForm.energy_readings.map((r, i) => 
+                                i === index ? { ...r, curr: Number(e.target.value) } : r
+                              );
                               setBillForm({ ...billForm, energy_readings: newReadings });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
@@ -1761,8 +1763,9 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                             type="number"
                             value={reading.prev}
                             onChange={e => {
-                              const newReadings = [...billForm.water_readings];
-                              newReadings[index].prev = Number(e.target.value);
+                              const newReadings = billForm.water_readings.map((r, i) => 
+                                i === index ? { ...r, prev: Number(e.target.value) } : r
+                              );
                               setBillForm({ ...billForm, water_readings: newReadings });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
@@ -1774,8 +1777,9 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                             type="number"
                             value={reading.curr}
                             onChange={e => {
-                              const newReadings = [...billForm.water_readings];
-                              newReadings[index].curr = Number(e.target.value);
+                              const newReadings = billForm.water_readings.map((r, i) => 
+                                i === index ? { ...r, curr: Number(e.target.value) } : r
+                              );
                               setBillForm({ ...billForm, water_readings: newReadings });
                             }}
                             className="w-full px-5 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium"
