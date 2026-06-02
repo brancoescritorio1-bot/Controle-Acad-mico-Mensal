@@ -1341,7 +1341,7 @@ app.get("/api/config", (req, res) => {
       energy_readings, water_readings, paid_categories, is_divergent, observations
     } = req.body;
     
-    const { error } = await supabase.from("chacara_bills").update({
+    const { data: bill, error } = await supabase.from("chacara_bills").update({
       chacara_user_id,
       month_reference,
       reading_date,
@@ -1370,7 +1370,7 @@ app.get("/api/config", (req, res) => {
       paid_categories: paid_categories || {},
       is_divergent: !!is_divergent,
       observations: observations || ''
-    }).eq("id", req.params.id).eq("user_id", user.id);
+    }).eq("id", req.params.id).eq("user_id", user.id).select().single();
 
     if (error) return res.status(500).json(error);
     
@@ -1384,7 +1384,7 @@ app.get("/api/config", (req, res) => {
       water_readings: water_readings || []
     }).eq("id", chacara_user_id).eq("user_id", user.id);
 
-    res.json({ success: true });
+    res.json(bill);
   });
 
   app.delete("/api/chacara/bills/:id", async (req, res) => {
