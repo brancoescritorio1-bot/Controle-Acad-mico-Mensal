@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   Zap, 
@@ -15,6 +15,7 @@ import {
   Filter,
   CheckCircle,
   XCircle,
+  Check,
   Search,
   History,
   PlusCircle,
@@ -23,17 +24,22 @@ import {
   Layers,
   PieChart,
   CheckCircle2,
-  FileText
+  FileText,
+  AlertCircle,
+  Eye,
+  FileDown,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import jsPDF from 'jspdf';
+import * as htmlToImage from 'html-to-image';
+import autoTable from 'jspdf-autotable';
 import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
 import { WhatsAppIcon, getGreeting } from '../MainApp';
 import { cn } from '../lib/utils';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface ChacaraManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -64,6 +70,129 @@ const formatWAPhone = (phone: string) => {
     return '55' + cleaned;
   }
   return cleaned;
+};
+
+const MonthYearPicker = ({ 
+  year, 
+  month, 
+  onSelect
+}: { 
+  year: string, 
+  month: string, 
+  onSelect: (y: string, m: string) => void
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(year === 'all' ? new Date().getFullYear().toString() : year);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const months = [
+    { id: '01', label: 'jan' }, { id: '02', label: 'fev' }, { id: '03', label: 'mar' }, { id: '04', label: 'abr' },
+    { id: '05', label: 'mai' }, { id: '06', label: 'jun' }, { id: '07', label: 'jul' }, { id: '08', label: 'ago' },
+    { id: '09', label: 'set' }, { id: '10', label: 'out' }, { id: '11', label: 'nov' }, { id: '12', label: 'dez' }
+  ];
+
+  const getLabel = () => {
+    if (year === 'all' && month === 'all') return 'Todos os Períodos';
+    if (year === 'all') return months.find(m => m.id === month)?.label || month;
+    if (month === 'all') return year;
+    const monthLabel = months.find(m => m.id === month)?.label || month;
+    return `${monthLabel} de ${year}`;
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium hover:border-indigo-300 transition-all shadow-sm group"
+      >
+        <Filter size={14} className="text-gray-400 group-hover:text-indigo-500" />
+        <span className="text-gray-700 min-w-[100px] text-left">{getLabel()}</span>
+        <Calendar size={14} className="text-gray-400 group-hover:text-indigo-500" />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute top-full left-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 p-4 min-w-[260px]"
+          >
+            <div className="flex items-center justify-between mb-4 bg-gray-50/80 p-2 rounded-xl">
+              <button 
+                onClick={() => setViewYear((parseInt(viewYear) - 1).toString())}
+                className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-400 hover:text-indigo-600 active:scale-95"
+              >
+                <ArrowRight size={16} className="rotate-180" />
+              </button>
+              <span className="font-black text-gray-800 text-sm tracking-tight">{viewYear}</span>
+              <button 
+                onClick={() => setViewYear((parseInt(viewYear) + 1).toString())}
+                className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-400 hover:text-indigo-600 active:scale-95"
+              >
+                <ArrowRight size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {months.map((m) => {
+                const isActive = month === m.id && year === viewYear;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      onSelect(viewYear, m.id);
+                      setIsOpen(false);
+                    }}
+                    className={cn(
+                      "py-2 rounded-xl text-[10px] font-black transition-all border uppercase tracking-wider",
+                      isActive 
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-md scale-105" 
+                        : "bg-white text-gray-600 border-gray-100/50 hover:border-indigo-100 hover:bg-indigo-50/50"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
+              <button
+                onClick={() => {
+                  onSelect('all', 'all');
+                  setIsOpen(false);
+                }}
+                className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest px-2"
+              >
+                Limpar
+              </button>
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  onSelect(now.getFullYear().toString(), (now.getMonth() + 1).toString().padStart(2, '0'));
+                  setIsOpen(false);
+                }}
+                className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest px-2"
+              >
+                Este mês
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
@@ -143,7 +272,95 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [searchBill, setSearchBill] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
+  const [pendingDetailsModal, setPendingDetailsModal] = useState<{isOpen: boolean, user: ChacaraUser | null}>({isOpen: false, user: null});
+  const [invoiceDetailsModal, setInvoiceDetailsModal] = useState<{isOpen: boolean, bill: ChacaraBill | null}>({isOpen: false, bill: null});
   const [highlightedBillId, setHighlightedBillId] = useState<number | null>(null);
+  const [pendingSearch, setPendingSearch] = useState('');
+  const [pendingSort, setPendingSort] = useState<'name' | 'balance'>('name');
+  const [detailsYearFilter, setDetailsYearFilter] = useState<string>('all');
+  const [detailsMonthFilter, setDetailsMonthFilter] = useState<string>('all');
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download') => {
+    if (!ref.current) return;
+    
+    try {
+      const element = ref.current;
+      const scrollContainer = element.querySelector('.overflow-y-auto') as HTMLElement;
+      
+      // Temporary styles to capture full content without scroll
+      const originalMaxHeight = element.parentElement?.style.maxHeight || '';
+      const originalHeight = element.parentElement?.style.height || '';
+      const originalScrollOverflow = scrollContainer?.style.overflowY || '';
+      const originalContainerOverflow = element.style.overflow || '';
+
+      // Hide interactive elements
+      const interactiveElements = element.querySelectorAll('button, .action-exclude');
+      interactiveElements.forEach(el => (el as HTMLElement).style.display = 'none');
+
+      // Expand container to full content height
+      if (element.parentElement) {
+        element.parentElement.style.maxHeight = 'none';
+        element.parentElement.style.height = 'auto';
+      }
+      if (scrollContainer) {
+        scrollContainer.style.overflowY = 'visible';
+        scrollContainer.style.height = 'auto';
+      }
+      element.style.overflow = 'visible';
+
+      const imgData = await htmlToImage.toPng(element, { 
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      
+      // Restore styles
+      if (element.parentElement) {
+        element.parentElement.style.maxHeight = originalMaxHeight;
+        element.parentElement.style.height = originalHeight;
+      }
+      if (scrollContainer) {
+        scrollContainer.style.overflowY = originalScrollOverflow;
+      }
+      element.style.overflow = originalContainerOverflow;
+      interactiveElements.forEach(el => (el as HTMLElement).style.display = '');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      if (action === 'share' && navigator.share) {
+        const pdfBlob = pdf.output('blob');
+        const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: fileName,
+              text: 'Segue os detalhes do extrato.'
+            });
+          } catch (shareErr) {
+            console.error('Share error:', shareErr);
+            pdf.save(`${fileName}.pdf`);
+          }
+        } else {
+          pdf.save(`${fileName}.pdf`);
+        }
+      } else {
+        pdf.save(`${fileName}.pdf`);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      dialogAlert('Erro ao gerar PDF. Verifique se o seu navegador é compatível.');
+    }
+  };
+
+  const invoiceModalRef = useRef<HTMLDivElement>(null);
 
   const calculateBillCategories = (bill: ChacaraBill) => {
     const energyConsumption = bill.energy_readings && bill.energy_readings.length > 0
@@ -481,10 +698,14 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         fetchData();
         if (onDataUpdate) onDataUpdate();
         
-        dialogAlert(wasEditing ? 'Conta atualizada com sucesso!' : 'Conta lançada com sucesso!');
+        const willView = await dialogConfirm(wasEditing ? 'Conta atualizada com sucesso! Deseja visualizar o extrato para PDF?' : 'Conta lançada com sucesso! Deseja visualizar o extrato para PDF?');
         
-        // Automate WhatsApp sending after saving
-        sendWhatsApp(savedBill);
+        if (willView) {
+          setInvoiceDetailsModal({ isOpen: true, bill: savedBill });
+        } else {
+          // Automate WhatsApp sending only if not viewing PDF (to avoid popups overlap if any)
+          sendWhatsApp(savedBill);
+        }
         
         if (setActiveTab) {
           setActiveTab('chacara_history');
@@ -979,6 +1200,46 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   };
 
+  const sendPendingSummaryWhatsApp = (user: ChacaraUser, pendingBills: ChacaraBill[]) => {
+    if (!user.phone) {
+      dialogAlert('Usuário não possui telefone cadastrado.');
+      return;
+    }
+
+    const totalPending = pendingBills.reduce((acc, bill) => acc + (bill.total - (bill.amount_paid || 0)), 0);
+    const greeting = getGreeting();
+    
+    let message = `${greeting}, ${user.name}!
+Sou da Associação Comunitária Vivendas da Serra.
+Verifiquei aqui que constam valores pendentes em seu nome acumulados.
+
+*Resumo de Pendências:*
+`;
+
+    pendingBills.forEach(bill => {
+      const [year, month] = bill.month_reference.split('-');
+      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+      const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+      const pendingPart = bill.total - (bill.amount_paid || 0);
+      
+      message += `\n• ${capitalizedMonth}/${year}: R$ ${pendingPart.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      if (bill.amount_paid && bill.amount_paid > 0) {
+        message += ` (Pago: R$ ${bill.amount_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+      }
+    });
+
+    message += `\n\n*Total Acumulado: R$ ${totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*`;
+    message += `\n\nPor favor, entre em contato para regularizarmos esses valores. Caso já tenha realizado o pagamento, por favor envie o comprovante.`;
+
+    if (settings.whatsapp_observation) {
+      message += `\n\n${settings.whatsapp_observation}`;
+    }
+
+    const encodedMessage = encodeURIComponent(message);
+    const phone = formatWAPhone(user.phone);
+    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+  };
+
   const generateLancamentos = (): Lancamento[] => {
     const lancamentos: Lancamento[] = [];
 
@@ -1097,6 +1358,648 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
               onRefresh={fetchData}
             />
           </motion.div>
+        )}
+        {activeTab === 'chacara_pending' && (
+          <motion.div
+            key="chacara_pending"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
+          >
+            <Card title="Relatório de Pendências Acumuladas" icon={AlertCircle}>
+              <div className="space-y-6">
+                <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 mb-8 space-y-6">
+                  <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                      {/* Search */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Buscar Morador</label>
+                        <div className="relative group">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Nome ou telefone..."
+                            value={pendingSearch}
+                            onChange={(e) => setPendingSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl text-xs focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Sort */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Ordenar Lista</label>
+                        <select
+                          value={pendingSort}
+                          onChange={(e) => setPendingSort(e.target.value as 'name' | 'balance')}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-2xl text-xs focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                        >
+                          <option value="name">Por Nome (A-Z)</option>
+                          <option value="balance">Por Saldo (Maior)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col items-start lg:items-end gap-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Resumo Financeiro</label>
+                        <div className="bg-amber-100 text-amber-800 px-6 py-2.5 rounded-2xl text-xs font-black border border-amber-200 shadow-sm whitespace-nowrap">
+                          Total em Aberto: R$ {users.reduce((acc, user) => {
+                            const userBills = bills.filter(b => {
+                              if (b.chacara_user_id !== user.id || b.status === 'paid') return false;
+                              const [y, m] = b.month_reference.split('-');
+                              if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                              if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                              return true;
+                            });
+                            return acc + userBills.reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
+                          }, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start border-t border-gray-100 pt-6">
+                    <div className="lg:col-span-12 space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Selecione o Período de Pendência</label>
+                       <div className="flex flex-wrap gap-3">
+                         <MonthYearPicker 
+                           year={detailsYearFilter}
+                           month={detailsMonthFilter}
+                           onSelect={(y, m) => {
+                             setDetailsYearFilter(y);
+                             setDetailsMonthFilter(m);
+                           }}
+                         />
+                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto -mx-5 md:mx-0">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Morador</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Meses Devendo</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Total Pendente</th>
+                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users
+                        .filter(user => {
+                          const pending = bills.filter(b => {
+                            if (b.chacara_user_id !== user.id || b.status === 'paid') return false;
+                            const [y, m] = b.month_reference.split('-');
+                            if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                            if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                            return true;
+                          });
+                          if (pending.length === 0) return false;
+                          if (pendingSearch) {
+                            return user.name.toLowerCase().includes(pendingSearch.toLowerCase()) || 
+                                   user.phone.includes(pendingSearch);
+                          }
+                          return true;
+                        })
+                        .sort((a, b) => {
+                          if (pendingSort === 'name') return a.name.localeCompare(b.name);
+                          const balanceA = bills.filter(b => {
+                            if (b.chacara_user_id !== a.id || b.status === 'paid') return false;
+                            const [y, m] = b.month_reference.split('-');
+                            if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                            if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                            return true;
+                          }).reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
+
+                          const balanceB = bills.filter(b => {
+                            if (b.chacara_user_id !== b.id || b.status === 'paid') return false;
+                            const [y, m] = b.month_reference.split('-');
+                            if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                            if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                            return true;
+                          }).reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
+                          
+                          return balanceB - balanceA;
+                        })
+                        .length > 0 ? (
+                        users
+                          .filter(user => {
+                            const pending = bills.filter(b => {
+                              if (b.chacara_user_id !== user.id || b.status === 'paid') return false;
+                              const [y, m] = b.month_reference.split('-');
+                              if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                              if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                              return true;
+                            });
+                            if (pending.length === 0) return false;
+                            if (pendingSearch) {
+                              return user.name.toLowerCase().includes(pendingSearch.toLowerCase()) || 
+                                     user.phone.includes(pendingSearch);
+                            }
+                            return true;
+                          })
+                          .sort((a, b) => {
+                            if (pendingSort === 'name') return a.name.localeCompare(b.name);
+                            const balanceA = bills.filter(b => {
+                              if (b.chacara_user_id !== a.id || b.status === 'paid') return false;
+                              const [y, m] = b.month_reference.split('-');
+                              if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                              if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                              return true;
+                            }).reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
+
+                            const balanceB = bills.filter(b => {
+                              if (b.chacara_user_id !== b.id || b.status === 'paid') return false;
+                              const [y, m] = b.month_reference.split('-');
+                              if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                              if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                              return true;
+                            }).reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
+                            
+                            return balanceB - balanceA;
+                          })
+                          .map(user => {
+                            const pendingBills = bills.filter(b => {
+                              if (b.chacara_user_id !== user.id || b.status === 'paid') return false;
+                              const [y, m] = b.month_reference.split('-');
+                              if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                              if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                              return true;
+                            }).sort((a, b) => a.month_reference.localeCompare(b.month_reference));
+                            
+                            const totalPending = pendingBills.reduce((acc, b) => acc + (b.total - (b.amount_paid || 0)), 0);
+
+                            return (
+                              <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-all">
+                                <td className="px-6 py-4">
+                                  <div className="font-bold text-gray-800">{user.name}</div>
+                                  <div className="text-xs text-gray-500">{user.phone}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-wrap gap-1">
+                                    {pendingBills.map(b => {
+                                      const [y, m] = b.month_reference.split('-');
+                                      return (
+                                        <button 
+                                          key={b.id} 
+                                          onClick={() => handleToggleStatusClick(b)}
+                                          className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-100 hover:bg-red-100 transition-all flex items-center gap-1 group"
+                                          title="Dar baixa neste pagamento"
+                                        >
+                                          {m}/{y}
+                                          <Check size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-right font-black text-red-600">
+                                  R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex flex-col sm:flex-row items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => setPendingDetailsModal({ isOpen: true, user })}
+                                      className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <Eye size={14} />
+                                      Ver Detalhes
+                                    </button>
+                                    <button
+                                      onClick={() => sendPendingSummaryWhatsApp(user, pendingBills)}
+                                      className="inline-flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-600 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <WhatsAppIcon size={14} />
+                                      Enviar Resumo
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                            <CheckCircle size={48} className="mx-auto mb-2 opacity-20 text-emerald-500" />
+                            <p className="font-medium text-gray-500">Nenhuma pendência encontrada com esses filtros.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+        {pendingDetailsModal.isOpen && pendingDetailsModal.user && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+            >
+              <div ref={modalContentRef} className="flex-1 overflow-hidden flex flex-col">
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
+                      <Eye className="text-indigo-600" size={24} />
+                      Extrato de Pendências
+                    </h3>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{pendingDetailsModal.user.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'download')}
+                      className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
+                    >
+                      <FileDown size={14} />
+                      PDF
+                    </button>
+                    <button 
+                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share')}
+                      className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
+                      title="Compartilhar PDF"
+                    >
+                      <Share2 size={14} />
+                      Compartilhar
+                    </button>
+                    <button 
+                      onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
+                      className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                    >
+                      <XCircle size={24} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30">
+                  <div className="space-y-6">
+                    {bills.filter(b => {
+                      if (b.chacara_user_id !== pendingDetailsModal.user?.id || b.status === 'paid') return false;
+                      const [y, m] = b.month_reference.split('-');
+                      if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                      if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                      return true;
+                    })
+                      .sort((a, b) => a.month_reference.localeCompare(b.month_reference))
+                      .map((bill) => {
+                        const [year, month] = bill.month_reference.split('-');
+                        const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+                        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                        
+                        const energyReadings = bill.energy_readings || [];
+                        const waterReadings = bill.water_readings || [];
+                        const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                        const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                        const energyTotal = consumption * bill.kwh_value;
+                        const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
+                        
+                        const pendingAmount = bill.total - (bill.amount_paid || 0);
+
+                        return (
+                          <div key={bill.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center">
+                              <span className="font-black text-indigo-900 uppercase tracking-tighter">{capitalizedMonth} / {year}</span>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => handleToggleStatusClick(bill)}
+                                  className="text-[11px] font-black bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-wider shadow-sm active:scale-95"
+                                >
+                                  <Check size={14} />
+                                  RECEBER
+                                </button>
+                                <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            </div>
+                          
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Zap size={12} className="text-amber-500" /> Energia
+                                </h4>
+                                {energyReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {energyReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Padrão {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Energia:</span>
+                                      <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Briefcase size={12} className="text-blue-500" /> Água
+                                </h4>
+                                {waterReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {waterReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Mesa/Hidrômetro {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                      <span>Taxa Prestador:</span>
+                                      <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Água:</span>
+                                      <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
+                              <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
+                              <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                          
+                          {bill.amount_paid > 0 && (
+                            <div className="px-5 pb-5 flex justify-end">
+                              <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                Valor Já Pago: R$ {bill.amount_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center">
+                <div className="text-gray-500 text-xs font-bold">
+                  Total Pendente Geral: <span className="text-red-600 font-black text-lg ml-2">R$ {
+                    bills.filter(b => b.chacara_user_id === pendingDetailsModal.user?.id && b.status !== 'paid')
+                      .reduce((acc, b) => acc + (b.total - (b.amount_paid || 0)), 0)
+                      .toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                  }</span>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share')}
+                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
+                  >
+                    <Share2 size={16} />
+                    Compartilhar PDF
+                  </button>
+                  <button 
+                    onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
+                    className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+            </motion.div>
+          </div>
+        )}
+        {invoiceDetailsModal.isOpen && invoiceDetailsModal.bill && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+            >
+              <div ref={invoiceModalRef} className="flex-1 overflow-hidden flex flex-col">
+                {(() => {
+                  const bill = invoiceDetailsModal.bill!;
+                  const user = users.find(u => u.id === bill.chacara_user_id);
+                  const [year, month] = bill.month_reference.split('-');
+                  const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+                  const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                  
+                  const energyReadings = bill.energy_readings || [];
+                  const waterReadings = bill.water_readings || [];
+                  const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                  const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                  const energyTotal = consumption * bill.kwh_value;
+                  const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
+
+                  return (
+                    <>
+                      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
+                            <FileText className="text-indigo-600" size={24} />
+                            Extrato Mensal - {capitalizedMonth} / {year}
+                          </h3>
+                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{user?.name || 'Usuário'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'download')}
+                            className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
+                            title="Gerar PDF"
+                          >
+                            <FileDown size={14} />
+                            PDF
+                          </button>
+                          <button 
+                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share')}
+                            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
+                            title="Compartilhar PDF"
+                          >
+                            <Share2 size={14} />
+                            Compartilhar
+                          </button>
+                          {bill.status !== 'paid' && (
+                            <button
+                              onClick={() => {
+                                setInvoiceDetailsModal({ isOpen: false, bill: null });
+                                handleToggleStatusClick(bill);
+                              }}
+                              className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm"
+                            >
+                              <Check size={14} />
+                              RECEBER
+                            </button>
+                          )}
+                          <button
+                            onClick={() => sendWhatsApp(bill)}
+                            className="flex items-center gap-2 bg-green-500 text-white px-5 py-2 rounded-xl text-xs font-black hover:bg-green-600 transition-all shadow-sm"
+                          >
+                            <WhatsAppIcon size={14} />
+                            WhatsApp
+                          </button>
+                          <button 
+                            onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
+                            className="p-2 hover:bg-gray-200 rounded-full transition-colors ml-2"
+                          >
+                            <XCircle size={24} className="text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30">
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                          <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center">
+                            <span className="font-black text-indigo-900 uppercase tracking-tighter">Resumo da Conta</span>
+                            <span className="text-xs font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">
+                              Vencimento: {bill.due_date ? new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/A'}
+                            </span>
+                          </div>
+                          
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Zap size={12} className="text-amber-500" /> Energia
+                                </h4>
+                                {energyReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {energyReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Padrão {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Energia:</span>
+                                      <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Briefcase size={12} className="text-blue-500" /> Água
+                                </h4>
+                                {waterReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {waterReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Mesa/Hidrômetro {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                      <span>Taxa Prestador:</span>
+                                      <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Água:</span>
+                                      <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
+                              <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total Geral</span>
+                              <span className="text-lg font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          {bill.status !== 'paid' && (
+                            <button
+                              onClick={() => {
+                                setInvoiceDetailsModal({ isOpen: false, bill: null });
+                                handleToggleStatusClick(bill);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+                            >
+                              <Check size={20} />
+                              RECEBER
+                            </button>
+                          )}
+                          <button
+                            onClick={() => sendWhatsApp(bill)}
+                            className="flex-1 flex items-center justify-center gap-3 bg-green-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-green-600 transition-all shadow-lg active:scale-95"
+                          >
+                            <WhatsAppIcon size={20} />
+                            WhatsApp
+                          </button>
+                        </div>
+                        <div className="flex gap-3 justify-end items-center mt-2">
+                          <button 
+                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share')}
+                            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
+                          >
+                            <Share2 size={16} />
+                            Compartilhar PDF
+                          </button>
+                          <button 
+                            onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
+                            className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95"
+                          >
+                            Fechar
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </div>
         )}
         {activeTab === 'chacara_messages' && (
           <motion.div
@@ -2077,19 +2980,19 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                               R$ {bill.total.toFixed(2)}
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <button 
-                                onClick={() => handleToggleStatusClick(bill)}
-                                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 mx-auto transition-all ${
-                                  isPaid 
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                    : isPartial
-                                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                }`}
-                              >
-                                {isPaid ? <CheckCircle size={14} /> : isPartial ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                                {isPaid ? 'PAGA' : isPartial ? 'PARCIAL' : 'PENDENTE'}
-                              </button>
+                                <button 
+                                  onClick={() => handleToggleStatusClick(bill)}
+                                  className={`px-3 py-2 rounded-xl text-[11px] font-black flex items-center gap-2 mx-auto transition-all shadow-sm active:scale-95 uppercase tracking-wider ${
+                                    isPaid 
+                                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                      : isPartial
+                                        ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                  }`}
+                                >
+                                  {isPaid ? <Check size={14} /> : isPartial ? <CheckCircle size={14} /> : <Check size={14} />}
+                                  {isPaid ? 'PAGO' : isPartial ? 'PARCIAL' : 'RECEBER'}
+                                </button>
                               {(isPaid || isPartial) && bill.payment_date && (
                                 <div className="text-[10px] text-gray-500 mt-1 font-medium">
                                   Pago em: {new Date(bill.payment_date + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -2102,6 +3005,13 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                               )}
                             </td>
                             <td className="px-6 py-4 text-right space-x-1">
+                              <button 
+                                onClick={() => setInvoiceDetailsModal({ isOpen: true, bill })}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                title="Ver Extrato / PDF"
+                              >
+                                <FileText size={18} />
+                              </button>
                               <button 
                                 onClick={() => sendWhatsApp(bill)}
                                 className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-all"
@@ -2199,18 +3109,28 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                            <button 
+                              onClick={() => handleToggleStatusClick(bill)}
+                              className={`w-full py-3 rounded-2xl text-sm font-black flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 uppercase tracking-widest ${
+                                isPaid 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : isPartial
+                                    ? 'bg-indigo-500 text-white'
+                                    : 'bg-indigo-600 text-white'
+                              }`}
+                            >
+                              {isPaid ? <Check size={20} /> : isPartial ? <CheckCircle size={20} /> : <Check size={20} />}
+                              {isPaid ? 'PAGO' : isPartial ? 'PARCIAL' : 'RECEBER'}
+                            </button>
+                          
                           <button 
-                            onClick={() => handleToggleStatusClick(bill)}
-                            className={`w-full py-3 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 ${
-                              isPaid 
-                                ? 'bg-green-100 text-green-700' 
-                                : isPartial
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-indigo-600 text-white'
-                            }`}
+                            onClick={() => setInvoiceDetailsModal({ isOpen: true, bill })}
+                            className="w-full sm:w-auto p-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                            title="Ver Extrato"
                           >
-                            {isPaid ? <CheckCircle size={18} /> : isPartial ? <CheckCircle size={18} /> : <CheckCircle size={18} />}
-                            {isPaid ? 'PAGO' : isPartial ? 'PARCIAL' : 'RECEBER'}
+                            <FileText size={20} className="sm:hidden mr-2" />
+                            <span className="sm:hidden font-bold">Extrato PDF</span>
+                            <FileText size={20} className="hidden sm:block" />
                           </button>
                           
                           <button 

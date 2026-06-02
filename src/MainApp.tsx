@@ -5127,6 +5127,7 @@ Escalas GMNL ${year}`;
           ) : activeModule === 'chacara' ? (
             <>
               <TabButton active={activeTab === 'chacara_dashboard'} onClick={() => setActiveTab('chacara_dashboard')} icon={LayoutDashboard} label="Dashboard" />
+              <TabButton active={activeTab === 'chacara_pending'} onClick={() => setActiveTab('chacara_pending')} icon={AlertCircle} label="Pendências" />
               <TabButton active={activeTab === 'chacara_expenses'} onClick={() => setActiveTab('chacara_expenses')} icon={Banknote} label="Despesas" />
               <TabButton active={activeTab === 'chacara_main'} onClick={() => setActiveTab('chacara_main')} icon={PlusCircle} label="Lançar Conta" />
               <TabButton active={activeTab === 'chacara_history'} onClick={() => setActiveTab('chacara_history')} icon={History} label="Histórico" />
