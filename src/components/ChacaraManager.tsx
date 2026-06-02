@@ -1624,7 +1624,12 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                       PDF
                     </button>
                     <button 
-                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share')}
+                      onClick={() => {
+                        const user = pendingDetailsModal.user;
+                        const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
+                        const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
+                        exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
+                      }}
                       className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
                       title="Compartilhar PDF"
                     >
@@ -1760,7 +1765,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                           {bill.amount_paid > 0 && (
                             <div className="px-5 pb-5 flex justify-end">
                               <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                                Valor Já Pago: R$ {bill.amount_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
                             </div>
                           )}
@@ -2865,15 +2870,15 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                 <span className="text-gray-500 text-[10px] md:text-sm font-semibold mb-1 uppercase tracking-wider">Total a Pagar</span>
-                <span className="text-2xl md:text-3xl font-black text-gray-800">R$ {totalToPay.toFixed(2).replace('.', ',')}</span>
+                <span className="text-2xl md:text-3xl font-black text-gray-800">R$ {totalToPay.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                 <span className="text-gray-500 text-[10px] md:text-sm font-semibold mb-1 uppercase tracking-wider">Total Pago</span>
-                <span className="text-2xl md:text-3xl font-black text-emerald-600">R$ {totalPaid.toFixed(2).replace('.', ',')}</span>
+                <span className="text-2xl md:text-3xl font-black text-emerald-600">R$ {totalPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                 <span className="text-gray-500 text-[10px] md:text-sm font-semibold mb-1 uppercase tracking-wider">Total Pendente</span>
-                <span className="text-2xl md:text-3xl font-black text-rose-600">R$ {totalPending.toFixed(2).replace('.', ',')}</span>
+                <span className="text-2xl md:text-3xl font-black text-rose-600">R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
 
@@ -3108,22 +3113,22 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                           </div>
                           <div className="text-right">
                             <p className={`text-xl font-black text-indigo-600 ${isPaid ? 'line-through text-gray-400' : ''}`}>
-                              R$ {bill.total.toFixed(2).replace('.', ',')}
+                              R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                             {isPartial && (
                               <p className="text-[10px] font-bold text-blue-600">
-                                Pago: R$ {(bill.amount_paid || 0).toFixed(2).replace('.', ',')}
+                                Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                             )}
                           </div>
                         </div>
 
                         <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                          {energyTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Energia: R$ {energyTotal.toFixed(2)}</span>}
-                          {waterValueTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Água: R$ {waterValueTotal.toFixed(2)}</span>}
-                          {apportionment > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Pag. Adv. e Cont.: R$ {apportionment.toFixed(2)}</span>}
-                          {reserveFund > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Fundo: R$ {reserveFund.toFixed(2)}</span>}
-                          {serviceFee > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Taxa: R$ {serviceFee.toFixed(2)}</span>}
+                          {energyTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Energia: R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          {waterValueTotal > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Água: R$ {waterValueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          {apportionment > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Pag. Adv. e Cont.: R$ {apportionment.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          {reserveFund > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Fundo: R$ {reserveFund.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          {serviceFee > 0 && <span className="bg-gray-100 px-2 py-1 rounded-md">Taxa: R$ {serviceFee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -3318,7 +3323,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
@@ -3385,7 +3390,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                           />
                           <span className="text-sm font-medium text-gray-700">{item.label}</span>
                         </div>
-                        <span className="text-sm font-bold text-gray-900">R$ {item.value.toFixed(2)}</span>
+                        <span className="text-sm font-bold text-gray-900">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </label>
                     ));
                   })()}
@@ -3404,7 +3409,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                       !paymentDateModal.isDivergent && "opacity-50 cursor-not-allowed"
                     )}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Total da conta: R$ {paymentDateModal.bill?.total?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 mt-1">Total da conta: R$ {paymentDateModal.bill?.total?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}</p>
                 </div>
               </div>
 
