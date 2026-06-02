@@ -157,7 +157,7 @@ const MonthYearPicker = ({
                     className={cn(
                       "py-2 rounded-xl text-[10px] font-black transition-all border uppercase tracking-wider",
                       isActive 
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-md scale-105" 
+                        ? "bg-[#007bff] text-white border-[#007bff] shadow-md scale-105" 
                         : "bg-white text-gray-600 border-gray-100/50 hover:border-indigo-100 hover:bg-indigo-50/50"
                     )}
                   >
@@ -281,7 +281,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [detailsMonthFilter, setDetailsMonthFilter] = useState<string>('all');
   const modalContentRef = useRef<HTMLDivElement>(null);
 
-  const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download') => {
+  const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download', shareText?: string) => {
     if (!ref.current) return;
     
     try {
@@ -342,7 +342,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
             await navigator.share({
               files: [file],
               title: fileName,
-              text: 'Segue os detalhes do extrato.'
+              text: shareText || 'Segue os detalhes do extrato.'
             });
           } catch (shareErr) {
             console.error('Share error:', shareErr);
@@ -660,7 +660,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const reserveFund = billForm.include_reserve_fund ? settings.reserve_fund_value : 0;
     const waterServiceFee = hasWater ? (billForm.water_service_fee || 0) : 0;
     
-    const total = energyTotal + waterTotal + apportionment + reserveFund + waterServiceFee;
+    const total = Number((energyTotal + waterTotal + apportionment + reserveFund + waterServiceFee).toFixed(2));
 
     const payload = {
       ...billForm,
@@ -1096,15 +1096,19 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   };
 
   const sendWhatsApp = (bill: ChacaraBill) => {
-    console.log('DEBUG: sendWhatsApp - bill:', bill);
-    console.log('DEBUG: sendWhatsApp - users:', users);
     const user = users.find(u => u.id === Number(bill.chacara_user_id));
-    console.log('DEBUG: sendWhatsApp - found user:', user);
     if (!user) {
       dialogAlert(`Usuário não encontrado para este lançamento. ID procurado: ${bill.chacara_user_id}`);
       return;
     }
 
+    const msg = getBillWhatsAppMessage(bill, user, settings);
+    const encodedMessage = encodeURIComponent(msg);
+    const phone = formatWAPhone(user.phone);
+    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const getBillWhatsAppMessage = (bill: ChacaraBill, user: ChacaraUser, settings: ChacaraSettings) => {
     const hasEnergy = user.has_energy !== false && user.energy_active !== false;
     const hasWater = user.has_water !== false && user.water_active !== false;
 
@@ -1194,10 +1198,8 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
     if (settings.whatsapp_observation) {
       message += `\n\n${settings.whatsapp_observation}`;
     }
-
-    const encodedMessage = encodeURIComponent(message);
-    const phone = formatWAPhone(user.phone);
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    
+    return message;
   };
 
   const sendPendingSummaryWhatsApp = (user: ChacaraUser, pendingBills: ChacaraBill[]) => {
@@ -1206,6 +1208,13 @@ Subtotal: R$ ${Number(waterTotal).toLocaleString('pt-BR', { minimumFractionDigit
       return;
     }
 
+    const message = getPendingSummaryWhatsAppMessage(user, pendingBills, settings);
+    const encodedMessage = encodeURIComponent(message);
+    const phone = formatWAPhone(user.phone);
+    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const getPendingSummaryWhatsAppMessage = (user: ChacaraUser, pendingBills: ChacaraBill[], settings: ChacaraSettings) => {
     const totalPending = pendingBills.reduce((acc, bill) => acc + (bill.total - (bill.amount_paid || 0)), 0);
     const greeting = getGreeting();
     
@@ -1234,10 +1243,8 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
     if (settings.whatsapp_observation) {
       message += `\n\n${settings.whatsapp_observation}`;
     }
-
-    const encodedMessage = encodeURIComponent(message);
-    const phone = formatWAPhone(user.phone);
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    
+    return message;
   };
 
   const generateLancamentos = (): Lancamento[] => {
@@ -1669,7 +1676,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                                   <Check size={14} />
                                   RECEBER
                                 </button>
-                                <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             </div>
                           
@@ -1738,22 +1745,22 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                           <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
                               <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
                               <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
                               <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
-                              <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                           
                           {bill.amount_paid > 0 && (
                             <div className="px-5 pb-5 flex justify-end">
                               <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                                Valor Já Pago: R$ {bill.amount_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                Valor Já Pago: R$ {bill.amount_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
                             </div>
                           )}
@@ -1768,12 +1775,17 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                   Total Pendente Geral: <span className="text-red-600 font-black text-lg ml-2">R$ {
                     bills.filter(b => b.chacara_user_id === pendingDetailsModal.user?.id && b.status !== 'paid')
                       .reduce((acc, b) => acc + (b.total - (b.amount_paid || 0)), 0)
-                      .toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                      .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                   }</span>
                 </div>
                 <div className="flex gap-3">
                   <button 
-                    onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share')}
+                    onClick={() => {
+                      const user = pendingDetailsModal.user;
+                      const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
+                      const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
+                      exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
+                    }}
                     className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
                   >
                     <Share2 size={16} />
@@ -1833,7 +1845,10 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                             PDF
                           </button>
                           <button 
-                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share')}
+                            onClick={() => {
+                              const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
+                              exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
+                            }}
                             className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
                             title="Compartilhar PDF"
                           >
@@ -1942,11 +1957,11 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                           <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
                               <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
                               <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
                               <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total Geral</span>
@@ -1980,7 +1995,10 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                         </div>
                         <div className="flex gap-3 justify-end items-center mt-2">
                           <button 
-                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share')}
+                            onClick={() => {
+                              const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
+                              exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
+                            }}
                             className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
                           >
                             <Share2 size={16} />
