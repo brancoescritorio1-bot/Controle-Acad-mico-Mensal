@@ -40,18 +40,35 @@ export const PdfService = {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+        // Calculate image aspect ratio
+        const imgWidth = imgProps.width;
+        const imgHeight = imgProps.height;
+        const ratio = pdfWidth / imgWidth;
+        const scaledHeight = imgHeight * ratio;
         
-        const finalWidth = imgProps.width * ratio;
-        const finalHeight = imgProps.height * ratio;
+        // Slice the image into pages
+        let remainingHeight = scaledHeight;
+        let yOffset = 0;
+        let pageCount = 0;
         
-        const x = (pdfWidth - finalWidth) / 2;
-        const y = (pdfHeight - finalHeight) / 2;
-        
-        pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight);
+        while (remainingHeight > 0) {
+            if (pageCount > 0) pdf.addPage();
+            
+            pdf.addImage(
+                dataUrl, 
+                'PNG', 
+                0, 
+                -yOffset, 
+                pdfWidth, 
+                scaledHeight
+            );
+            
+            yOffset += pdfHeight;
+            remainingHeight -= pdfHeight;
+            pageCount++;
+        }
         
         // Add footer for all pages
-        const pageCount = pdf.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             pdf.setPage(i);
             pdf.setFontSize(10);
