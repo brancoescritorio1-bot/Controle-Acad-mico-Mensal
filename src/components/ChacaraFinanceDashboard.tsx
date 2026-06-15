@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Wallet, TrendingUp, Droplets, Zap, Building2, Briefcase, Users, Download, Plus, Trash2, FileText, Image as ImageIcon, X, Eye } from 'lucide-react';
 import { ChacaraBill } from '../types';
-import { PdfService } from '../lib/PdfService';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 import { useDialog } from './DialogContext';
 
 interface ChacaraFinanceDashboardProps {
@@ -128,28 +129,59 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
   };
 
   const handleExport = async () => {
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+
     if (!dashboardRef.current) return;
     
-    // Define pre/post-processing for the PDF export
-    const preProcess = (el: HTMLElement) => {
-      el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
+    try {
+      // Temporarily hide elements with 'no-export' or 'print:hidden'
+      const elementsToHide = dashboardRef.current.querySelectorAll('.no-export, .print\\:hidden');
+      const originalDisplays: string[] = [];
+      
+      elementsToHide.forEach((el: any) => {
+        originalDisplays.push(el.style.display);
         el.style.display = 'none';
       });
-    };
 
-    const postProcess = (el: HTMLElement) => {
-      // Need to restore display. How to get original display?
-      // Actually, passing el directly works, but I need to restore the element's display.
-      // The old code used querySelectorAll again in finally.
-      // If I just set display to '' (empty), it restores the default, which is usually correct
-      // (as it was before the inline style change). Let's hope that works.
-      el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
-        el.style.display = '';
+      const dataUrl = await toPng(dashboardRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#f9fafb' // bg-gray-50
       });
-    };
 
-    try {
-      await PdfService.exportToPDF(dashboardRef.current, `Dashboard_Chacara_${filterMonth}`, 'p', 'save', 'Segue o documento em PDF.', preProcess, postProcess);
+      // Restore elements
+      elementsToHide.forEach((el: any, index) => {
+        el.style.display = originalDisplays[index];
+      });
+
+      const pdf = new jsPDF({
+        orientation: orientation as 'p'|'l',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+      
+      const finalWidth = imgProps.width * ratio;
+      const finalHeight = imgProps.height * ratio;
+      
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.save(`Dashboard_Chacara_${filterMonth}.pdf`);
     } catch (error: any) {
       console.error('Erro ao exportar o dashboard:', error);
       dialogAlert(`Ocorreu um erro ao tentar exportar o dashboard: ${error.message || error}. Tente novamente.`);

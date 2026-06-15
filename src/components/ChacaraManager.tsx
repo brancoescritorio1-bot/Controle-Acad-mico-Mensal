@@ -38,7 +38,6 @@ import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
 import { WhatsAppIcon, getGreeting } from '../MainApp';
 import { cn } from '../lib/utils';
-import { PdfService } from '../lib/PdfService';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
 
@@ -197,7 +196,7 @@ const MonthYearPicker = ({
 };
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert, askOptions, preview } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -284,43 +283,80 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download', shareText?: string) => {
     if (!ref.current) return;
-    const element = ref.current;
     
-    // Original styles management
-    const originalMaxHeight = element.parentElement?.style.maxHeight || '';
-    const originalHeight = element.parentElement?.style.height || '';
-    const originalContainerOverflow = element.style.overflow || '';
-    
-    const preProcess = (el: HTMLElement) => {
-        const interactiveElements = el.querySelectorAll('button, .action-exclude');
-        interactiveElements.forEach(item => (item as HTMLElement).style.display = 'none');
-        if (el.parentElement) {
-            el.parentElement.style.maxHeight = 'none';
-            el.parentElement.style.height = 'auto';
-        }
-        el.style.overflow = 'visible';
-    };
+    try {
+      const element = ref.current;
+      const scrollContainer = element.querySelector('.overflow-y-auto') as HTMLElement;
+      
+      // Temporary styles to capture full content without scroll
+      const originalMaxHeight = element.parentElement?.style.maxHeight || '';
+      const originalHeight = element.parentElement?.style.height || '';
+      const originalScrollOverflow = scrollContainer?.style.overflowY || '';
+      const originalContainerOverflow = element.style.overflow || '';
 
-    const postProcess = (el: HTMLElement) => {
-        const interactiveElements = el.querySelectorAll('button, .action-exclude');
-        interactiveElements.forEach(item => (item as HTMLElement).style.display = '');
-        if (el.parentElement) {
-            el.parentElement.style.maxHeight = originalMaxHeight;
-            el.parentElement.style.height = originalHeight;
-        }
-        el.style.overflow = originalContainerOverflow;
-    };
+      // Hide interactive elements
+      const interactiveElements = element.querySelectorAll('button, .action-exclude');
+      interactiveElements.forEach(el => (el as HTMLElement).style.display = 'none');
 
-    // Apply pre-processing for the preview to look correct
-    preProcess(element);
-    
-    const confirmed = await preview(element, fileName);
-    
-    if (confirmed) {
-      await PdfService.exportToPDF(element, fileName, 'p', action, shareText, preProcess, postProcess);
-    } else {
-      // If cancelled, ensure postProcess is applied
-      postProcess(element);
+      // Expand container to full content height
+      if (element.parentElement) {
+        element.parentElement.style.maxHeight = 'none';
+        element.parentElement.style.height = 'auto';
+      }
+      if (scrollContainer) {
+        scrollContainer.style.overflowY = 'visible';
+        scrollContainer.style.height = 'auto';
+      }
+      element.style.overflow = 'visible';
+
+      const imgData = await htmlToImage.toPng(element, { 
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      
+      // Restore styles
+      if (element.parentElement) {
+        element.parentElement.style.maxHeight = originalMaxHeight;
+        element.parentElement.style.height = originalHeight;
+      }
+      if (scrollContainer) {
+        scrollContainer.style.overflowY = originalScrollOverflow;
+      }
+      element.style.overflow = originalContainerOverflow;
+      interactiveElements.forEach(el => (el as HTMLElement).style.display = '');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      if (action === 'share' && navigator.share) {
+        const pdfBlob = pdf.output('blob');
+        const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: fileName,
+              text: shareText || 'Segue os detalhes do extrato.'
+            });
+          } catch (shareErr) {
+            console.error('Share error:', shareErr);
+            pdf.save(`${fileName}.pdf`);
+          }
+        } else {
+          pdf.save(`${fileName}.pdf`);
+        }
+      } else {
+        pdf.save(`${fileName}.pdf`);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      dialogAlert('Erro ao gerar PDF. Verifique se o seu navegador é compatível.');
     }
   };
 

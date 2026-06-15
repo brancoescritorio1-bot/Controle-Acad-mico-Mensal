@@ -28,7 +28,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { WhatsAppIcon } from '../MainApp';
 import { useDialog } from './DialogContext';
-import { PdfService } from '../lib/PdfService';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface FixedBill {
@@ -551,7 +552,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     }
   };
 
-  const handleGeneratePDF = async () => {
+  const generatePDF = async () => {
     const orientation = await askOptions({
       title: 'Formato do PDF',
       message: 'Como você deseja gerar este arquivo PDF?',
@@ -563,14 +564,36 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     
     if (!orientation) return;
 
-    const element = document.getElementById('printable-dashboard');
-    if (!element) {
+    const input = document.getElementById('printable-dashboard');
+    if (!input) {
       await dialogAlert('Erro ao localizar o painel.', 'Erro');
       return;
     }
     
-    await PdfService.exportToPDF('printable-dashboard', `Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}`, orientation as 'p'|'l');
-    await dialogAlert('PDF gerado com sucesso!', 'Sucesso');
+    // Pequeno delay para garantir que componentes visuais (SVG/Charts) estejam prontos
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      const imgData = await toPng(input, { 
+        quality: 0.95,
+        backgroundColor: '#f9fafb',
+        pixelRatio: 2
+      });
+      const img = new Image();
+      img.src = imgData;
+      await new Promise(resolve => img.onload = resolve);
+      
+      const pdf = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (img.height * pdfWidth) / img.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}.pdf`);
+      await dialogAlert('PDF gerado com sucesso!', 'Sucesso');
+    } catch (err) {
+      console.error(err);
+      await dialogAlert('Erro ao gerar PDF', 'Erro');
+    }
   };
 
   return (
@@ -690,7 +713,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                <span>Compartilhar</span>
             </button>
             <button 
-               onClick={handleGeneratePDF}
+               onClick={generatePDF}
                className="flex items-center justify-center gap-2 flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95"
             >
                <FileText size={14} />
