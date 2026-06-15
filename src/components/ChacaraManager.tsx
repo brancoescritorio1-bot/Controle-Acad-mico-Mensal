@@ -197,7 +197,7 @@ const MonthYearPicker = ({
 };
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions, preview } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -311,7 +311,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         el.style.overflow = originalContainerOverflow;
     };
 
-    await PdfService.generatePDF(element, fileName, action, shareText, preProcess, postProcess);
+    // Apply pre-processing for the preview to look correct
+    preProcess(element);
+    
+    const confirmed = await preview(element, fileName);
+    
+    if (confirmed) {
+      await PdfService.generatePDF(element, fileName, action, shareText, preProcess, postProcess);
+    } else {
+      // If cancelled, ensure postProcess is applied
+      postProcess(element);
+    }
   };
 
   const invoiceModalRef = useRef<HTMLDivElement>(null);
