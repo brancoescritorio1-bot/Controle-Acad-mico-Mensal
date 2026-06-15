@@ -130,24 +130,29 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
   const handleExport = async () => {
     if (!dashboardRef.current) return;
     
-    // Hide buttons/interactive elements for PDF
-    const elementsToHide = dashboardRef.current.querySelectorAll('button, .no-export, .print\\:hidden');
-    const originalDisplays: string[] = [];
-    elementsToHide.forEach((el: any) => {
-        originalDisplays.push(el.style.display);
+    // Define pre/post-processing for the PDF export
+    const preProcess = (el: HTMLElement) => {
+      el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
         el.style.display = 'none';
-    });
+      });
+    };
+
+    const postProcess = (el: HTMLElement) => {
+      // Need to restore display. How to get original display?
+      // Actually, passing el directly works, but I need to restore the element's display.
+      // The old code used querySelectorAll again in finally.
+      // If I just set display to '' (empty), it restores the default, which is usually correct
+      // (as it was before the inline style change). Let's hope that works.
+      el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
+        el.style.display = '';
+      });
+    };
 
     try {
-      await PdfService.generatePDF(dashboardRef.current, `Dashboard_Chacara_${filterMonth}`);
+      await PdfService.exportToPDF(dashboardRef.current, `Dashboard_Chacara_${filterMonth}`, 'p', 'save', 'Segue o documento em PDF.', preProcess, postProcess);
     } catch (error: any) {
       console.error('Erro ao exportar o dashboard:', error);
       dialogAlert(`Ocorreu um erro ao tentar exportar o dashboard: ${error.message || error}. Tente novamente.`);
-    } finally {
-        // Restore elements
-        elementsToHide.forEach((el: any, index) => {
-            el.style.display = originalDisplays[index];
-        });
     }
   };
 

@@ -569,7 +569,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
       return;
     }
     
-    await PdfService.generatePDF(element, `Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}`);
+    await PdfService.exportToPDF('printable-dashboard', `Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}`, orientation as 'p'|'l');
     await dialogAlert('PDF gerado com sucesso!', 'Sucesso');
   };
 

@@ -181,10 +181,11 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
       </table>
     `;
     
+    tableContainer.id = 'temp-pdf-table';
     document.body.appendChild(tableContainer);
     
     try {
-        await PdfService.generatePDF(tableContainer, `comparativo_categorias_${filterMonth.replace('/', '_')}`);
+        await PdfService.exportToPDF('temp-pdf-table', `comparativo_categorias_${filterMonth.replace('/', '_')}`, orientation as 'p'|'l');
     } finally {
         document.body.removeChild(tableContainer);
     }

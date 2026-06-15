@@ -317,7 +317,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     const confirmed = await preview(element, fileName);
     
     if (confirmed) {
-      await PdfService.generatePDF(element, fileName, action, shareText, preProcess, postProcess);
+      await PdfService.exportToPDF(element, fileName, 'p', action, shareText, preProcess, postProcess);
     } else {
       // If cancelled, ensure postProcess is applied
       postProcess(element);
