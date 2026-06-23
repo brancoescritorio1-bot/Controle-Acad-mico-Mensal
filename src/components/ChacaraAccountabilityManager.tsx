@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, FileText, Download, Upload, Calendar, DollarSign, PieChart, TrendingUp, TrendingDown, CheckCircle } from 'lucide-react';
 import { ChacaraAccountability, ChacaraExpense, ChacaraBill } from '../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useDialog } from './DialogContext';
 
@@ -249,77 +247,31 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
   const exportToPDF = async () => {
     if (!accountability) return;
 
-    const orientation = await askOptions({
-      title: 'Formato do PDF',
-      message: 'Como você deseja gerar este arquivo PDF?',
-      options: [
-        { label: 'Vertical (Retrato)', value: 'p' },
-        { label: 'Horizontal (Paisagem)', value: 'l' }
-      ]
-    });
-    if (!orientation) return;
+    try {
+        const response = await fetchWithAuth('/api/generate-chacara-accountability-pdf', {
+            method: 'POST',
+            body: JSON.stringify({
+                monthReference,
+                form,
+                total_collected: accountabilityTotals?.total_collected || 0,
+                totalExpenses,
+                finalBalance,
+                expenses
+            }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
 
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
-    
-    // Header
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, 0, 210, 30, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('Prestação de Contas - Chácara', 14, 20);
-    
-    // Info
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.text(`Mês de Referência: ${monthReference}`, 14, 40);
-    
-    // Financial Summary
-    doc.setFontSize(14);
-    doc.text('Resumo Financeiro', 14, 55);
-    doc.setDrawColor(79, 70, 229);
-    doc.line(14, 57, 196, 57);
-    
-    doc.setFontSize(10);
-    doc.text(`Saldo Inicial Fundo Reserva: R$ ${form.initial_reserve_fund.toFixed(2)}`, 14, 65);
-    doc.text(`Saldo Inicial Rateio: R$ ${form.initial_apportionment.toFixed(2)}`, 14, 71);
-    doc.text(`Saldo Inicial Prestadores: R$ ${form.initial_services.toFixed(2)}`, 14, 77);
-    doc.text(`Total Arrecadado no Mês: R$ ${accountabilityTotals?.total_collected?.toFixed(2) || '0.00'}`, 14, 83);
-    doc.text(`Total de Despesas: R$ ${totalExpenses.toFixed(2)}`, 14, 89);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Saldo Final: R$ ${finalBalance.toFixed(2)}`, 14, 101);
-    doc.setFont('helvetica', 'normal');
+        if (!response.ok) throw new Error('Failed to generate PDF');
 
-    // Expenses Table
-    if (expenses.length > 0) {
-      autoTable(doc, {
-        startY: 110,
-        head: [['Data', 'Descrição', 'Categoria', 'Valor']],
-        body: expenses.map(exp => [
-          new Date(exp.date + 'T12:00:00').toLocaleDateString('pt-BR'),
-          exp.description,
-          exp.category,
-          `R$ ${exp.amount.toFixed(2)}`
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229] },
-      });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error(error);
+        dialogAlert('Erro ao gerar PDF.');
     }
-
-    // Receipts List
-    const receipts = expenses.filter(exp => exp.receipt_url);
-    if (receipts.length > 0) {
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
-      doc.text('Comprovantes Anexados', 14, finalY);
-      doc.setFontSize(10);
-      receipts.forEach((exp, index) => {
-        doc.text(`${index + 1}. ${exp.description}: ${exp.receipt_url}`, 14, finalY + 10 + (index * 6));
-      });
-    }
-
-    doc.save(`prestacao-contas-${monthReference}.pdf`);
   };
 
   useEffect(() => {
