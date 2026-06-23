@@ -3,20 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
-const PdfPrinter = require('pdfmake');
-import fs from 'fs';
-const fonts = {
-  Roboto: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique'
-  }
-};
-const printer = new (PdfPrinter.PdfPrinter || PdfPrinter.default || PdfPrinter)(fonts);
-// Note: PDFMake needs font file paths if using standard fonts, or a VFS object. 
-// For simplicity, we can use a VFS approach if needed, or point to standard system fonts if available.
-// Given container environment, let's try a simpler approach if possible.
 
 let currentDir = "";
 try {
@@ -571,104 +557,6 @@ app.get("/api/config", (req, res) => {
     } catch (error: any) {
       console.error("Dashboard error:", error.message);
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/generate-chacara-accountability-pdf", async (req, res) => {
-    try {
-      const data = req.body;
-      const docDefinition = {
-        pageSize: 'A4',
-        pageMargins: [40, 80, 40, 80],
-        header: {
-          columns: [
-            { text: 'Prestação de Contas - Chácara', style: 'header', margin: [40, 30] },
-            { text: `Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, alignment: 'right', margin: [0, 30, 40, 0], fontSize: 10 }
-          ]
-        },
-        footer: (currentPage: number, pageCount: number) => ({
-          text: `Página ${currentPage} de ${pageCount}`,
-          alignment: 'center',
-          fontSize: 10,
-          margin: [0, 20]
-        }),
-        content: [
-          { text: `Mês de Referência: ${data.monthReference}`, style: 'subheader', margin: [0, 20, 0, 10] },
-          { text: 'Resumo Financeiro', style: 'sectionHeader' },
-          {
-            table: {
-              widths: ['*', 'auto'],
-              body: [
-                ['Descrição', 'Valor'],
-                ['Saldo Inicial Fundo Reserva', `R$ ${data.form.initial_reserve_fund.toFixed(2)}`],
-                ['Saldo Inicial Rateio', `R$ ${data.form.initial_apportionment.toFixed(2)}`],
-                ['Saldo Inicial Prestadores', `R$ ${data.form.initial_services.toFixed(2)}`],
-                ['Total Arrecadado', `R$ ${data.total_collected.toFixed(2)}`],
-                ['Total de Despesas', `R$ ${data.totalExpenses.toFixed(2)}`],
-                [{ text: 'Saldo Final', bold: true }, { text: `R$ ${data.finalBalance.toFixed(2)}`, bold: true }]
-              ]
-            }
-          },
-          { text: 'Despesas Detalhadas', style: 'sectionHeader', pageBreak: 'before' },
-          {
-            table: {
-              headerRows: 1,
-              widths: ['auto', '*', 'auto', 'auto'],
-              body: [
-                ['Data', 'Descrição', 'Categoria', 'Valor'],
-                ...data.expenses.map((exp: any) => [
-                  new Date(exp.date + 'T12:00:00').toLocaleDateString('pt-BR'),
-                  exp.description,
-                  exp.category,
-                  `R$ ${exp.amount.toFixed(2)}`
-                ])
-              ]
-            }
-          }
-        ],
-        styles: {
-          header: { fontSize: 20, bold: true },
-          subheader: { fontSize: 14 },
-          sectionHeader: { fontSize: 16, bold: true, margin: [0, 20, 0, 10] }
-        }
-      };
-
-      const pdfDoc = printer.createPdfKitDocument(docDefinition);
-      res.setHeader('Content-Type', 'application/pdf');
-      pdfDoc.pipe(res);
-      pdfDoc.end();
-    } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/generate-work-roster-pdf", async (req, res) => {
-    try {
-      const { escala, teamComposition } = req.body;
-      
-      const docDefinition = {
-        pageSize: 'A4',
-        pageOrientation: 'landscape',
-        pageMargins: [20, 40, 20, 20],
-        content: [
-          { text: `Escala de Trabalho - ${escala.name}`, style: 'header' },
-          { text: 'Visualização de Impressão', style: 'subheader' },
-          // Add table and cards here based on data
-        ],
-        styles: {
-          header: { fontSize: 18, bold: true },
-          subheader: { fontSize: 12, italics: true },
-        }
-      };
-
-      const pdfDoc = printer.createPdfKitDocument(docDefinition);
-      res.setHeader('Content-Type', 'application/pdf');
-      pdfDoc.pipe(res);
-      pdfDoc.end();
-    } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
     }
   });
 

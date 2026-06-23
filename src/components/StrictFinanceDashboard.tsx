@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Wallet, TrendingUp, TrendingDown, Building2, Droplets, Zap, Briefcase, Users, AlertCircle, Download, Activity, X, CheckCircle2, Calendar } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PdfService } from '../lib/PdfService';
 import { useDialog } from './DialogContext';
 import { cn } from '../lib/utils';
 
@@ -143,89 +144,51 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
       ]
     });
     if (!orientation) return;
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     
-    doc.setFontSize(16);
-    doc.text(`Comparativo Geral de Categorias - ${filterMonth}`, 14, 15);
+    // Creating a hidden element to represent the comparison view
+    const tableContainer = document.createElement('div');
+    tableContainer.style.position = 'absolute';
+    tableContainer.style.left = '-9999px';
+    tableContainer.style.width = '800px';
+    tableContainer.style.backgroundColor = 'white';
     
-    const tableColumn = ["Usuário", "Fundo de Reserva", "Água", "Energia", "Prestador", "Rateio", "Status"];
-    const tableRows: any[] = [];
-    const diffRows: number[] = [];
-
-    comparisonData.forEach((row, index) => {
-      const getStatusText = (item: Lancamento | null) => {
-        if (!item) return 'Não cobrado';
-        return `${item.status.toUpperCase()} (R$ ${item.valor.toFixed(2)})`;
-      };
-
-      const statuses = [
-        row.fundo ? row.fundo.status : 'N/A',
-        row.agua ? row.agua.status : 'N/A',
-        row.energia ? row.energia.status : 'N/A',
-        row.prestador ? row.prestador.status : 'N/A',
-        row.rateio ? row.rateio.status : 'N/A'
-      ];
-      const hasDiff = !statuses.every(s => s === statuses[0]);
-
-      if (hasDiff) {
-        diffRows.push(index);
-      }
-
-      const rowData = [
-        row.name,
-        getStatusText(row.fundo),
-        getStatusText(row.agua),
-        getStatusText(row.energia),
-        getStatusText(row.prestador),
-        getStatusText(row.rateio),
-        hasDiff ? 'Diferença' : 'OK'
-      ];
-      tableRows.push(rowData);
-    });
-
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 25,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [79, 70, 229] },
-      didParseCell: function(data) {
-        if (data.section === 'body') {
-          if (diffRows.includes(data.row.index)) {
-            data.cell.styles.fillColor = [254, 242, 242]; // red-50
-          }
-
-          const text = data.cell.raw;
-          if (typeof text === 'string') {
-            if (text.startsWith('PAGO')) {
-              data.cell.styles.textColor = [5, 150, 105]; // emerald-600
-              data.cell.styles.fontStyle = 'bold';
-            } else if (text.startsWith('PENDENTE')) {
-              data.cell.styles.textColor = [220, 38, 38]; // red-600
-              data.cell.styles.fontStyle = 'bold';
-            } else if (text.startsWith('PARCIAL')) {
-              data.cell.styles.textColor = [217, 119, 6]; // amber-600
-              data.cell.styles.fontStyle = 'bold';
-            } else if (text === 'Não cobrado') {
-              data.cell.styles.textColor = [156, 163, 175]; // gray-400
-              data.cell.styles.fontStyle = 'italic';
-            }
-
-            if (data.column.index === 6) { // Status column
-              if (text === 'Diferença') {
-                data.cell.styles.textColor = [220, 38, 38]; // red-600
-                data.cell.styles.fontStyle = 'bold';
-              } else if (text === 'OK') {
-                data.cell.styles.textColor = [5, 150, 105]; // emerald-600
-                data.cell.styles.fontStyle = 'bold';
-              }
-            }
-          }
-        }
-      }
-    });
-
-    doc.save(`comparativo_categorias_${filterMonth.replace('/', '_')}.pdf`);
+    // Simplistic reproduction of the table structure for the PDF generator
+    tableContainer.innerHTML = `
+      <h2 style="font-family: sans-serif;">Comparativo Geral - ${filterMonth}</h2>
+      <table border="1" style="border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="padding: 5px;">Usuário</th>
+            <th style="padding: 5px;">Fundo</th>
+            <th style="padding: 5px;">Água</th>
+            <th style="padding: 5px;">Energia</th>
+            <th style="padding: 5px;">Prestador</th>
+            <th style="padding: 5px;">Rateio</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${comparisonData.map(row => `
+            <tr>
+              <td style="padding: 5px;">${row.name}</td>
+              <td style="padding: 5px;">${row.fundo?.status || 'N/A'}</td>
+              <td style="padding: 5px;">${row.agua?.status || 'N/A'}</td>
+              <td style="padding: 5px;">${row.energia?.status || 'N/A'}</td>
+              <td style="padding: 5px;">${row.prestador?.status || 'N/A'}</td>
+              <td style="padding: 5px;">${row.rateio?.status || 'N/A'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    tableContainer.id = 'temp-pdf-table';
+    document.body.appendChild(tableContainer);
+    
+    try {
+        await PdfService.exportToPDF('temp-pdf-table', `comparativo_categorias_${filterMonth.replace('/', '_')}`, orientation as 'p'|'l');
+    } finally {
+        document.body.removeChild(tableContainer);
+    }
   };
 
   return (

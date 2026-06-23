@@ -34,11 +34,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import * as htmlToImage from 'html-to-image';
 import autoTable from 'jspdf-autotable';
-import { ChacaraExtractPrintView } from './ChacaraExtractPrintView';
 import { ChacaraUser, ChacaraBill, ChacaraSettings } from '../types';
 import { ChacaraFinanceDashboard } from './ChacaraFinanceDashboard';
 import { WhatsAppIcon, getGreeting } from '../MainApp';
 import { cn } from '../lib/utils';
+import { PdfService } from '../lib/PdfService';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
 
@@ -197,7 +197,7 @@ const MonthYearPicker = ({
 };
 
 export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, activeTab, onDataUpdate, setActiveTab }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions, preview } = useDialog();
   const [users, setUsers] = useState<ChacaraUser[]>([]);
   const [bills, setBills] = useState<ChacaraBill[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -275,7 +275,6 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
   const [pendingDetailsModal, setPendingDetailsModal] = useState<{isOpen: boolean, user: ChacaraUser | null}>({isOpen: false, user: null});
   const [invoiceDetailsModal, setInvoiceDetailsModal] = useState<{isOpen: boolean, bill: ChacaraBill | null}>({isOpen: false, bill: null});
-  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [highlightedBillId, setHighlightedBillId] = useState<number | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
   const [pendingSort, setPendingSort] = useState<'name' | 'balance'>('name');
@@ -285,80 +284,43 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download', shareText?: string) => {
     if (!ref.current) return;
+    const element = ref.current;
     
-    try {
-      const element = ref.current;
-      const scrollContainer = element.querySelector('.overflow-y-auto') as HTMLElement;
-      
-      // Temporary styles to capture full content without scroll
-      const originalMaxHeight = element.parentElement?.style.maxHeight || '';
-      const originalHeight = element.parentElement?.style.height || '';
-      const originalScrollOverflow = scrollContainer?.style.overflowY || '';
-      const originalContainerOverflow = element.style.overflow || '';
-
-      // Hide interactive elements
-      const interactiveElements = element.querySelectorAll('button, .action-exclude');
-      interactiveElements.forEach(el => (el as HTMLElement).style.display = 'none');
-
-      // Expand container to full content height
-      if (element.parentElement) {
-        element.parentElement.style.maxHeight = 'none';
-        element.parentElement.style.height = 'auto';
-      }
-      if (scrollContainer) {
-        scrollContainer.style.overflowY = 'visible';
-        scrollContainer.style.height = 'auto';
-      }
-      element.style.overflow = 'visible';
-
-      const imgData = await htmlToImage.toPng(element, { 
-        backgroundColor: '#ffffff',
-        pixelRatio: 2,
-        cacheBust: true,
-      });
-      
-      // Restore styles
-      if (element.parentElement) {
-        element.parentElement.style.maxHeight = originalMaxHeight;
-        element.parentElement.style.height = originalHeight;
-      }
-      if (scrollContainer) {
-        scrollContainer.style.overflowY = originalScrollOverflow;
-      }
-      element.style.overflow = originalContainerOverflow;
-      interactiveElements.forEach(el => (el as HTMLElement).style.display = '');
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      if (action === 'share' && navigator.share) {
-        const pdfBlob = pdf.output('blob');
-        const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: fileName,
-              text: shareText || 'Segue os detalhes do extrato.'
-            });
-          } catch (shareErr) {
-            console.error('Share error:', shareErr);
-            pdf.save(`${fileName}.pdf`);
-          }
-        } else {
-          pdf.save(`${fileName}.pdf`);
+    // Original styles management
+    const originalMaxHeight = element.parentElement?.style.maxHeight || '';
+    const originalHeight = element.parentElement?.style.height || '';
+    const originalContainerOverflow = element.style.overflow || '';
+    
+    const preProcess = (el: HTMLElement) => {
+        const interactiveElements = el.querySelectorAll('button, .action-exclude');
+        interactiveElements.forEach(item => (item as HTMLElement).style.display = 'none');
+        if (el.parentElement) {
+            el.parentElement.style.maxHeight = 'none';
+            el.parentElement.style.height = 'auto';
         }
-      } else {
-        pdf.save(`${fileName}.pdf`);
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      dialogAlert('Erro ao gerar PDF. Verifique se o seu navegador é compatível.');
+        el.style.overflow = 'visible';
+    };
+
+    const postProcess = (el: HTMLElement) => {
+        const interactiveElements = el.querySelectorAll('button, .action-exclude');
+        interactiveElements.forEach(item => (item as HTMLElement).style.display = '');
+        if (el.parentElement) {
+            el.parentElement.style.maxHeight = originalMaxHeight;
+            el.parentElement.style.height = originalHeight;
+        }
+        el.style.overflow = originalContainerOverflow;
+    };
+
+    // Apply pre-processing for the preview to look correct
+    preProcess(element);
+    
+    const confirmed = await preview(element, fileName);
+    
+    if (confirmed) {
+      await PdfService.exportToPDF(element, fileName, 'p', action, shareText, preProcess, postProcess);
+    } else {
+      // If cancelled, ensure postProcess is applied
+      postProcess(element);
     }
   };
 
@@ -972,31 +934,90 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   };
 
   const exportToPDF = async () => {
-    try {
-        const response = await fetchWithAuth('/api/generate-chacara-extract-pdf', {
-            method: 'POST',
-            body: JSON.stringify({
-                bills: filteredBills.map(bill => ({
-                    ...bill,
-                    ...calculateBillCategories(bill)
-                })),
-                users,
-                filterMonth
-            }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+    const orientation = await askOptions({
+      title: 'Formato do PDF',
+      message: 'Como você deseja gerar este arquivo PDF?',
+      options: [
+        { label: 'Vertical (Retrato)', value: 'p' },
+        { label: 'Horizontal (Paisagem)', value: 'l' }
+      ]
+    });
+    if (!orientation) return;
+    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
+    
+    doc.setFontSize(18);
+    doc.text('Relatório de Energia - Chácara Vivendas da Serra', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Mês de Referência: ${filterMonth}`, 14, 30);
 
-        if (!response.ok) throw new Error('Failed to generate PDF');
+    const tableData = filteredBills.map(bill => {
+      const user = users.find(u => u.id === bill.chacara_user_id);
+      const energyReadings = bill.energy_readings || [];
+      const waterReadings = bill.water_readings || [];
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-    } catch (error) {
-        console.error(error);
-        dialogAlert('Erro ao gerar PDF.');
-    }
+      const consumption = energyReadings.length > 0
+        ? energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0)
+        : (bill.curr_reading - bill.prev_reading) + ((bill.curr_reading_2 || 0) - (bill.prev_reading_2 || 0));
+      const energyTotal = consumption * bill.kwh_value;
+      
+      const waterConsumption = waterReadings.length > 0
+        ? waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0)
+        : (bill.water_curr_reading || 0) - (bill.water_prev_reading || 0) + ((bill.water_curr_reading_2 || 0) - (bill.water_prev_reading_2 || 0));
+      const waterValueTotal = waterConsumption * (bill.water_value || 0);
+      const waterServiceFee = bill.water_service_fee || 0;
+      
+      const apportionment = bill.include_apportionment ? (bill.apportionment_value || 0) : 0;
+      const reserveFund = bill.include_reserve_fund ? (bill.reserve_fund || 0) : 0;
+      
+      const isPaid = bill.status === 'paid';
+      const isPartial = bill.status === 'partial' || (!isPaid && (bill.amount_paid || 0) > 0);
+      const amountPaid = isPaid ? bill.total : (bill.amount_paid || 0);
+      const pendingAmount = isPaid ? 0 : (bill.total - amountPaid);
+      
+      return [
+        user?.name || 'N/I',
+        `R$ ${energyTotal.toFixed(2)}`,
+        `R$ ${waterValueTotal.toFixed(2)}`,
+        `R$ ${apportionment.toFixed(2)}`,
+        `R$ ${reserveFund.toFixed(2)}`,
+        `R$ ${waterServiceFee.toFixed(2)}`,
+        `R$ ${bill.total.toFixed(2)}`,
+        `R$ ${amountPaid.toFixed(2)}`,
+        `R$ ${pendingAmount.toFixed(2)}`,
+        isPaid ? 'PAGO' : isPartial ? 'PARCIAL' : 'PENDENTE',
+        bill.payment_date ? new Date(bill.payment_date + 'T12:00:00').toLocaleDateString('pt-BR') : '-'
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Usuário', 'Energia', 'Água', 'Pag. Adv. e Cont.', 'Fundo Res.', 'Taxas', 'Total', 'Pago', 'Pendente', 'Status', 'Data Pag.']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 7 },
+      didParseCell: (data) => {
+        if (data.row.section === 'body' && data.row.raw[9] === 'PAGO') {
+          data.cell.styles.textColor = [150, 150, 150];
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.row.section === 'body' && data.row.raw[9] === 'PAGO') {
+          const { x, y, width, height } = data.cell;
+          const midY = y + height / 2;
+          doc.setDrawColor(150, 150, 150);
+          doc.setLineWidth(0.1);
+          doc.line(x + 1, midY, x + width - 1, midY);
+        }
+      }
+    });
+
+    const totalMonth = filteredBills.reduce((acc, curr) => acc + curr.total, 0);
+    const finalY = (doc as any).lastAutoTable.finalY || 40;
+    doc.setFontSize(12);
+    doc.text(`Total Geral do Mês: R$ ${totalMonth.toFixed(2)}`, 14, finalY + 10);
+
+    doc.save(`relatorio-energia-${filterMonth}.pdf`);
   };
 
   useEffect(() => {
@@ -2875,33 +2896,8 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                     <Download size={18} />
                     Exportar PDF
                   </button>
-                  <button 
-                    onClick={() => setShowPrintPreview(true)}
-                    className="w-full sm:w-auto p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 px-4 font-bold text-sm"
-                  >
-                    <Eye size={18} />
-                    Visualizar Impressão
-                  </button>
                 </div>
               </div>
-
-              {showPrintPreview && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                    <div className="p-4 border-b flex justify-between items-center">
-                      <h2 className="text-lg font-bold">Visualização de Impressão</h2>
-                      <button onClick={() => setShowPrintPreview(false)} className="text-gray-500 hover:text-gray-700">Fechar</button>
-                    </div>
-                    <div className="flex-1 overflow-auto p-4">
-                      <ChacaraExtractPrintView 
-                        bills={filteredBills} 
-                        users={users} 
-                        filterMonth={filterMonth} 
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Desktop Table View */}
               <div className="overflow-x-auto hidden md:block">

@@ -197,43 +197,12 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
       .replace(/{saudação}/gi, greeting);
   };
 
-  const exportToPDF = async () => {
-    try {
-        const response = await fetchWithAuth('/api/generate-work-roster-pdf', {
-            method: 'POST',
-            body: JSON.stringify({
-                escala: selectedEscala,
-                teamComposition: [] // Placeholder for team data
-            }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error('Failed to generate PDF');
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-    } catch (error) {
-        console.error(error);
-        alert('Erro ao gerar PDF.');
-    }
-  };
-
   return (
     <div className="space-y-8 p-6 md:p-8">
       <div className="flex justify-center gap-4">
         <button onClick={() => setIsEscalaModalOpen(true)} className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition">Cadastrar Escala</button>
         <button onClick={() => setIsTemplateModalOpen(true)} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition">Cadastrar Modelo</button>
       </div>
-      
-      {/* Added PDF button in the roster management section */}
-      {selectedEscala && (
-        <button onClick={exportToPDF} className="bg-rose-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-rose-700 transition mt-4">
-            Visualizar / Exportar PDF
-        </button>
-      )}
 
       {isEscalaModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">

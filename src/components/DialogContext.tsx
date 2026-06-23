@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AlertCircle, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PdfPreviewModal } from './PdfPreviewModal';
 
 type ConfirmOptions = {
   title?: string;
@@ -13,6 +14,7 @@ type DialogContextType = {
   confirm: (message: string, options?: string | ConfirmOptions) => Promise<boolean>;
   alert: (message: string, title?: string) => Promise<void>;
   askOptions: <T>(config: { title: string; message: string; options: { label: string; value: T }[] }) => Promise<T | null>;
+  preview: (element: HTMLElement, title: string) => Promise<boolean>;
 };
 
 const DialogContext = createContext<DialogContextType | undefined>(undefined);
@@ -101,6 +103,21 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, []);
 
+  const preview = useCallback((element: HTMLElement, title: string) => {
+    return new Promise<boolean>((resolve) => {
+      setDialogs((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString() + Math.random(),
+          type: 'preview',
+          element,
+          title,
+          resolve,
+        },
+      ]);
+    });
+  }, []);
+
   const handleClose = (id: string, result: any) => {
     setDialogs((prev) => {
       const dialog = prev.find((d) => d.id === id);
@@ -110,10 +127,18 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <DialogContext.Provider value={{ confirm, alert, askOptions }}>
+    <DialogContext.Provider value={{ confirm, alert, askOptions, preview }}>
       {children}
       <AnimatePresence>
         {dialogs.map((dialog) => (
+            dialog.type === 'preview' ? (
+                <PdfPreviewModal
+                    key={dialog.id}
+                    element={dialog.element}
+                    title={dialog.title}
+                    onClose={(confirmed) => handleClose(dialog.id, confirmed)}
+                />
+            ) : (
           <motion.div
             key={dialog.id}
             initial={{ opacity: 0 }}
@@ -185,6 +210,7 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               </div>
             </motion.div>
           </motion.div>
+          )
         ))}
       </AnimatePresence>
     </DialogContext.Provider>
