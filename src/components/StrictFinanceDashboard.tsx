@@ -145,50 +145,39 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
     });
     if (!orientation) return;
     
-    // Creating a hidden element to represent the comparison view
-    const tableContainer = document.createElement('div');
-    tableContainer.style.position = 'absolute';
-    tableContainer.style.left = '-9999px';
-    tableContainer.style.width = '800px';
-    tableContainer.style.backgroundColor = 'white';
-    
-    // Simplistic reproduction of the table structure for the PDF generator
-    tableContainer.innerHTML = `
-      <h2 style="font-family: sans-serif;">Comparativo Geral - ${filterMonth}</h2>
-      <table border="1" style="border-collapse: collapse; width: 100%; font-family: sans-serif; font-size: 10px;">
-        <thead>
-          <tr style="background-color: #f3f4f6;">
-            <th style="padding: 5px;">Usuário</th>
-            <th style="padding: 5px;">Fundo</th>
-            <th style="padding: 5px;">Água</th>
-            <th style="padding: 5px;">Energia</th>
-            <th style="padding: 5px;">Prestador</th>
-            <th style="padding: 5px;">Rateio</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${comparisonData.map(row => `
-            <tr>
-              <td style="padding: 5px;">${row.name}</td>
-              <td style="padding: 5px;">${row.fundo?.status || 'N/A'}</td>
-              <td style="padding: 5px;">${row.agua?.status || 'N/A'}</td>
-              <td style="padding: 5px;">${row.energia?.status || 'N/A'}</td>
-              <td style="padding: 5px;">${row.prestador?.status || 'N/A'}</td>
-              <td style="padding: 5px;">${row.rateio?.status || 'N/A'}</td>
+    // Simplistic reproduction of the table structure with elegant styling for the PDF generator
+    const htmlContent = `
+      <div style="font-family: 'Inter', sans-serif; color: #111827;">
+        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 4px;">Comparativo Geral</h2>
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 24px;">Referência: ${filterMonth}</p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="background-color: #f3f4f6; color: #374151;">
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Usuário</th>
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Fundo</th>
+              <th style="padding: 10px; text-align: text-left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Água</th>
+              <th style="padding: 10px; text-align: text-left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Energia</th>
+              <th style="padding: 10px; text-align: text-left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Prestador</th>
+              <th style="padding: 10px; text-align: text-left; font-weight: 700; border-bottom: 2px solid #e5e7eb;">Rateio</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${comparisonData.map((row, idx) => `
+              <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6; font-weight: 600;">${row.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${row.fundo?.status || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${row.agua?.status || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${row.energia?.status || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${row.prestador?.status || 'N/A'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${row.rateio?.status || 'N/A'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
     `;
     
-    tableContainer.id = 'temp-pdf-table';
-    document.body.appendChild(tableContainer);
-    
-    try {
-        await PdfService.exportToPDF('temp-pdf-table', `comparativo_categorias_${filterMonth.replace('/', '_')}`, orientation as 'p'|'l');
-    } finally {
-        document.body.removeChild(tableContainer);
-    }
+    await PdfService.exportHTMLToPDF(htmlContent, orientation as 'p'|'l', `comparativo_categorias_${filterMonth.replace('/', '_')}`);
   };
 
   return (
@@ -415,7 +404,7 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
 
       {/* Modal de Detalhamento de Adesão */}
       {selectedCategory && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedCategory(null)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedCategory(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <div>
@@ -471,7 +460,7 @@ export const StrictFinanceDashboard: React.FC<StrictFinanceDashboardProps> = ({ 
 
       {/* Modal de Comparativo */}
       {showComparison && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowComparison(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowComparison(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <div>

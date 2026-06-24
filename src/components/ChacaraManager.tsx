@@ -28,7 +28,8 @@ import {
   AlertCircle,
   Eye,
   FileDown,
-  Share2
+  Share2,
+  Droplets
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
@@ -268,6 +269,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [whatsappChacaraTemplate, setWhatsappChacaraTemplate] = useState(() => localStorage.getItem('whatsappChacaraTemplate') || 'Olá {nome}, tudo bem?');
   const [sentChacaraMessages, setSentChacaraMessages] = useState<string[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [searchBill, setSearchBill] = useState('');
@@ -282,45 +284,65 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [detailsMonthFilter, setDetailsMonthFilter] = useState<string>('all');
   const modalContentRef = useRef<HTMLDivElement>(null);
 
-  const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'download' | 'share' = 'download', shareText?: string) => {
+  const exportPendingDetailsToPDF = async (ref: React.RefObject<HTMLDivElement>, fileName: string, action: 'save' | 'share' = 'save', shareText?: string) => {
     if (!ref.current) return;
     const element = ref.current;
     
-    // Original styles management
-    const originalMaxHeight = element.parentElement?.style.maxHeight || '';
-    const originalHeight = element.parentElement?.style.height || '';
-    const originalContainerOverflow = element.style.overflow || '';
-    
-    const preProcess = (el: HTMLElement) => {
-        const interactiveElements = el.querySelectorAll('button, .action-exclude');
-        interactiveElements.forEach(item => (item as HTMLElement).style.display = 'none');
-        if (el.parentElement) {
-            el.parentElement.style.maxHeight = 'none';
-            el.parentElement.style.height = 'auto';
-        }
-        el.style.overflow = 'visible';
-    };
+    // Show preview first (PdfPreviewModal clones the element and applies its own cleaning)
+    const confirmed = await preview(element, 'Visualização do Extrato');
+    if (!confirmed) return;
 
-    const postProcess = (el: HTMLElement) => {
-        const interactiveElements = el.querySelectorAll('button, .action-exclude');
-        interactiveElements.forEach(item => (item as HTMLElement).style.display = '');
-        if (el.parentElement) {
-            el.parentElement.style.maxHeight = originalMaxHeight;
-            el.parentElement.style.height = originalHeight;
-        }
-        el.style.overflow = originalContainerOverflow;
-    };
+    setIsGeneratingPdf(true);
+    // Give a small delay for the preview modal to fully close
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    let container: HTMLDivElement | null = null;
+    try {
+      // Create a temporary container for the clone
+      container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '1000px';
+      container.style.backgroundColor = 'white';
+      document.body.appendChild(container);
 
-    // Apply pre-processing for the preview to look correct
-    preProcess(element);
-    
-    const confirmed = await preview(element, fileName);
-    
-    if (confirmed) {
-      await PdfService.exportToPDF(element, fileName, 'p', action, shareText, preProcess, postProcess);
-    } else {
-      // If cancelled, ensure postProcess is applied
-      postProcess(element);
+      // Clone the element for export
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.classList.add('report-view');
+      
+      // Force the clone to show all content without scrolling
+      const scrollable = clone.querySelector('.report-container');
+      if (scrollable) {
+        (scrollable as HTMLElement).style.height = 'auto';
+        (scrollable as HTMLElement).style.maxHeight = 'none';
+        (scrollable as HTMLElement).style.overflow = 'visible';
+      }
+      
+      clone.style.height = 'auto';
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+      
+      // Remove interactive elements from clone
+      const interactive = clone.querySelectorAll('button, .action-exclude, .no-export');
+      interactive.forEach(el => (el as HTMLElement).style.display = 'none');
+      
+      // Ensure "show-on-export" elements are visible
+      const exportOnly = clone.querySelectorAll('.show-on-export');
+      exportOnly.forEach(el => (el as HTMLElement).style.display = 'block');
+
+      container.appendChild(clone);
+
+      await PdfService.exportToPDF(clone, fileName, 'p', action, shareText);
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      // Cleanup
+      if (container && document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+      // Ensure state is reset even if user navigated away or error occurred
+      setTimeout(() => setIsGeneratingPdf(false), 100);
     }
   };
 
@@ -943,13 +965,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       ]
     });
     if (!orientation) return;
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     
-    doc.setFontSize(18);
-    doc.text('Relatório de Energia - Chácara Vivendas da Serra', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Mês de Referência: ${filterMonth}`, 14, 30);
-
     const tableData = filteredBills.map(bill => {
       const user = users.find(u => u.id === bill.chacara_user_id);
       const energyReadings = bill.energy_readings || [];
@@ -989,35 +1005,17 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       ];
     });
 
-    autoTable(doc, {
-      startY: 40,
-      head: [['Usuário', 'Energia', 'Água', 'Pag. Adv. e Cont.', 'Fundo Res.', 'Taxas', 'Total', 'Pago', 'Pendente', 'Status', 'Data Pag.']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] },
-      styles: { fontSize: 7 },
-      didParseCell: (data) => {
-        if (data.row.section === 'body' && data.row.raw[9] === 'PAGO') {
-          data.cell.styles.textColor = [150, 150, 150];
-        }
-      },
-      didDrawCell: (data) => {
-        if (data.row.section === 'body' && data.row.raw[9] === 'PAGO') {
-          const { x, y, width, height } = data.cell;
-          const midY = y + height / 2;
-          doc.setDrawColor(150, 150, 150);
-          doc.setLineWidth(0.1);
-          doc.line(x + 1, midY, x + width - 1, midY);
-        }
-      }
-    });
-
     const totalMonth = filteredBills.reduce((acc, curr) => acc + curr.total, 0);
-    const finalY = (doc as any).lastAutoTable.finalY || 40;
-    doc.setFontSize(12);
-    doc.text(`Total Geral do Mês: R$ ${totalMonth.toFixed(2)}`, 14, finalY + 10);
 
-    doc.save(`relatorio-energia-${filterMonth}.pdf`);
+    await PdfService.exportTableToPDF(
+      'Relatório de Energia - Chácara Vivendas da Serra',
+      `Mês de Referência: ${filterMonth}`,
+      ['Usuário', 'Energia', 'Água', 'Pag. Adv. e Cont.', 'Fundo Res.', 'Taxas', 'Total', 'Pago', 'Pendente', 'Status', 'Data Pag.'],
+      tableData as string[][],
+      `Total Geral do Mês: R$ ${totalMonth.toFixed(2)}`,
+      orientation as 'p'|'l',
+      `relatorio-energia-${filterMonth}`
+    );
   };
 
   useEffect(() => {
@@ -1473,10 +1471,10 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                             }
                             return true;
                           })
-                          .sort((a, b) => {
-                            if (pendingSort === 'name') return a.name.localeCompare(b.name);
+                          .sort((userA, userB) => {
+                            if (pendingSort === 'name') return userA.name.localeCompare(userB.name);
                             const balanceA = bills.filter(b => {
-                              if (b.chacara_user_id !== a.id || b.status === 'paid') return false;
+                              if (b.chacara_user_id !== userA.id || b.status === 'paid') return false;
                               const [y, m] = b.month_reference.split('-');
                               if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
                               if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
@@ -1484,7 +1482,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                             }).reduce((sum, b) => sum + (b.total - (b.amount_paid || 0)), 0);
 
                             const balanceB = bills.filter(b => {
-                              if (b.chacara_user_id !== b.id || b.status === 'paid') return false;
+                              if (b.chacara_user_id !== userB.id || b.status === 'paid') return false;
                               const [y, m] = b.month_reference.split('-');
                               if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
                               if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
@@ -1568,13 +1566,21 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
           </motion.div>
         )}
         {pendingDetailsModal.isOpen && pendingDetailsModal.user && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-y-auto">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
+            {isGeneratingPdf && (
+              <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
+                </div>
+              </div>
+            )}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
             >
-              <div ref={modalContentRef} className="flex-1 overflow-hidden flex flex-col">
+              <div ref={modalContentRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
                   <div>
                     <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
@@ -1585,7 +1591,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'download')}
+                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'save')}
                       className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
                     >
                       <FileDown size={14} />
@@ -1613,7 +1619,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                   </div>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30">
+                <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
                   <div className="space-y-6">
                     {bills.filter(b => {
                       if (b.chacara_user_id !== pendingDetailsModal.user?.id || b.status === 'paid') return false;
@@ -1634,14 +1640,20 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                         const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
                         const energyTotal = consumption * bill.kwh_value;
                         const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
-                        
                         const pendingAmount = bill.total - (bill.amount_paid || 0);
 
                         return (
-                          <div key={bill.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center">
-                              <span className="font-black text-indigo-900 uppercase tracking-tighter">{capitalizedMonth} / {year}</span>
-                              <div className="flex items-center gap-3">
+                          <div key={bill.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
+                            <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
+                              <div className="flex flex-col flex-shrink-0">
+                                <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
+                                {bill.due_date && (
+                                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                                    Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 no-export">
                                 <button
                                   onClick={() => handleToggleStatusClick(bill)}
                                   className="text-[11px] font-black bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-wider shadow-sm active:scale-95"
@@ -1651,99 +1663,102 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                                 </button>
                                 <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
+                              <div className="hidden show-on-export">
+                                <span className="text-sm font-black text-rose-600">PENDENTE: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
                             </div>
-                          
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <Zap size={12} className="text-amber-500" /> Energia
-                                </h4>
-                                {energyReadings.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {energyReadings.map((r, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                        <div className="flex justify-between text-gray-500">
-                                          <span>Padrão {idx + 1}:</span>
-                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                            
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <Zap size={12} className="text-amber-500" /> Energia
+                                  </h4>
+                                  {energyReadings.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {energyReadings.map((r, idx) => (
+                                        <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                          <div className="flex justify-between text-gray-500">
+                                            <span>Padrão {idx + 1}:</span>
+                                            <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                          </div>
+                                          <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                            <span>Consumo:</span>
+                                            <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
+                                          </div>
                                         </div>
-                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                          <span>Consumo:</span>
-                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
-                                        </div>
+                                      ))}
+                                      <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                        <span>Subtotal Energia:</span>
+                                        <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                       </div>
-                                    ))}
-                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                      <span>Subtotal Energia:</span>
-                                      <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                     </div>
-                                  </div>
-                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                                  ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <Droplets size={12} className="text-blue-500" /> Água
+                                  </h4>
+                                  {waterReadings.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {waterReadings.map((r, idx) => (
+                                        <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                          <div className="flex justify-between text-gray-500">
+                                            <span>Mesa/Hidrômetro {idx + 1}:</span>
+                                            <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                          </div>
+                                          <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                            <span>Consumo:</span>
+                                            <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                        <span>Taxa Prestador:</span>
+                                        <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      </div>
+                                      <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                        <span>Subtotal Água:</span>
+                                        <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      </div>
+                                    </div>
+                                  ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                                </div>
                               </div>
                             </div>
 
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <Briefcase size={12} className="text-blue-500" /> Água
-                                </h4>
-                                {waterReadings.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {waterReadings.map((r, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                        <div className="flex justify-between text-gray-500">
-                                          <span>Mesa/Hidrômetro {idx + 1}:</span>
-                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                        </div>
-                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                          <span>Consumo:</span>
-                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    <div className="flex justify-between text-xs text-gray-600 mt-1">
-                                      <span>Taxa Prestador:</span>
-                                      <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                      <span>Subtotal Água:</span>
-                                      <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                  </div>
-                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                            <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                                <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
+                                <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                                <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
+                                <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
+                                <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
+                                <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
                             </div>
-                          </div>
-
-                          <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
-                              <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
-                              <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                          </div>
-                          
-                          {bill.amount_paid > 0 && (
-                            <div className="px-5 pb-5 flex justify-end">
-                              <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                                Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            
+                            {bill.amount_paid > 0 && (
+                              <div className="px-5 pb-5 flex justify-end">
+                                <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                  Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
 
-              <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center">
+              <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center report-total-footer">
                 <div className="text-gray-500 text-xs font-bold">
                   Total Pendente Geral: <span className="text-red-600 font-black text-lg ml-2">R$ {
                     bills.filter(b => b.chacara_user_id === pendingDetailsModal.user?.id && b.status !== 'paid')
@@ -1751,7 +1766,15 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                       .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                   }</span>
                 </div>
-                <div className="flex gap-3">
+                
+                {settings.whatsapp_observation && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export w-full">
+                    <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
+                    <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 no-export">
                   <button 
                     onClick={() => {
                       const user = pendingDetailsModal.user;
@@ -1759,14 +1782,14 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                       const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
                       exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
                     }}
-                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
+                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95 no-export"
                   >
                     <Share2 size={16} />
                     Compartilhar PDF
                   </button>
                   <button 
                     onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
-                    className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95"
+                    className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95 no-export"
                   >
                     Fechar
                   </button>
@@ -1777,13 +1800,21 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
           </div>
         )}
         {invoiceDetailsModal.isOpen && invoiceDetailsModal.bill && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl overflow-y-auto">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
+            {isGeneratingPdf && (
+              <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
+                </div>
+              </div>
+            )}
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
             >
-              <div ref={invoiceModalRef} className="flex-1 overflow-hidden flex flex-col">
+              <div ref={invoiceModalRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 {(() => {
                   const bill = invoiceDetailsModal.bill!;
                   const user = users.find(u => u.id === bill.chacara_user_id);
@@ -1800,7 +1831,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
 
                   return (
                     <>
-                      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between no-export">
                         <div>
                           <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
                             <FileText className="text-indigo-600" size={24} />
@@ -1810,7 +1841,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                         </div>
                         <div className="flex items-center gap-2">
                           <button 
-                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'download')}
+                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'save')}
                             className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
                             title="Gerar PDF"
                           >
@@ -1856,12 +1887,19 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                         </div>
                       </div>
 
-                      <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30">
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                          <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center">
-                            <span className="font-black text-indigo-900 uppercase tracking-tighter">Resumo da Conta</span>
-                            <span className="text-xs font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">
-                              Vencimento: {bill.due_date ? new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/A'}
+                      <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
+                          <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
+                            <div className="flex flex-col flex-shrink-0">
+                              <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
+                              {bill.due_date && (
+                                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                                  Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase no-export">
+                              Resumo da Conta
                             </span>
                           </div>
                           
@@ -1941,10 +1979,17 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                               <span className="text-lg font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
+                          
+                          {settings.whatsapp_observation && (
+                            <div className="mx-5 mb-5 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export">
+                              <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
+                              <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-col gap-3">
+                      <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-col gap-3 no-export">
                         <div className="flex flex-col sm:flex-row gap-3">
                           {bill.status !== 'paid' && (
                             <button
@@ -2250,6 +2295,20 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                         <td className="px-6 py-4 text-gray-600">{user.last_reading || 0} kWh</td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button 
+                            onClick={() => {
+                              const userBill = bills.find(b => Number(b.chacara_user_id) === user.id && b.month_reference === filterMonth);
+                              if (userBill) {
+                                setInvoiceDetailsModal({ isOpen: true, bill: userBill });
+                              } else {
+                                setPendingDetailsModal({ isOpen: true, user });
+                              }
+                            }}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                            title="Ver Extrato / Pendências"
+                          >
+                            <FileText size={16} />
+                          </button>
+                          <button 
                             onClick={() => { 
                               setEditingUser(user); 
                               setUserForm({ 
@@ -2422,28 +2481,25 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                       ]
                     });
                     if (!orientation) return;
-                    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
                     const filteredExps = expenses.filter(e => e.month_reference === filterMonth);
-                    
-                    doc.setFontSize(18);
-                    doc.text(`Relatório de Despesas - ${filterMonth}`, 14, 22);
-                    
                     const total = filteredExps.reduce((sum, e) => sum + Number(e.amount), 0);
-                    doc.setFontSize(12);
-                    doc.text(`Total: R$ ${total.toFixed(2)}`, 14, 32);
-
-                    autoTable(doc, {
-                      startY: 40,
-                      head: [['Data', 'Descrição', 'Categoria', 'Valor (R$)']],
-                      body: filteredExps.map(e => [
-                        new Date(e.date).toLocaleDateString('pt-BR'),
-                        e.description,
-                        e.category,
-                        Number(e.amount).toFixed(2)
-                      ]),
-                    });
                     
-                    doc.save(`despesas_${filterMonth}.pdf`);
+                    const bodyData = filteredExps.map(e => [
+                      new Date(e.date).toLocaleDateString('pt-BR'),
+                      e.description,
+                      e.category,
+                      `R$ ${Number(e.amount).toFixed(2)}`
+                    ]);
+
+                    await PdfService.exportTableToPDF(
+                      `Relatório de Despesas - ${filterMonth}`,
+                      `Visão geral de despesas do mês`,
+                      ['Data', 'Descrição', 'Categoria', 'Valor (R$)'],
+                      bodyData,
+                      `Total: R$ ${total.toFixed(2)}`,
+                      orientation as 'p'|'l',
+                      `despesas_${filterMonth}`
+                    );
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-semibold hover:bg-indigo-100 transition-colors"
                 >
@@ -2940,7 +2996,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
 
                         return (
                           <tr 
-                            key={bill.id} 
+                            key={`desktop-${bill.id}`} 
                             id={`bill-${bill.id}`}
                             className={cn(
                               "border-b border-gray-50 hover:bg-gray-50/50 transition-all",
@@ -3064,7 +3120,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
                     
                     return (
                       <div 
-                        key={bill.id} 
+                        key={`mobile-${bill.id}`} 
                         id={`bill-mob-${bill.id}`}
                         className={cn(
                           "p-4 space-y-3 transition-all duration-500",

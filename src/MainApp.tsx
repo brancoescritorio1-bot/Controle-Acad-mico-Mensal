@@ -58,10 +58,38 @@ import { Subject, Attendance, Activities, WebContent, DashboardData, Period, Fin
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toPng } from 'html-to-image';
+import { PdfService } from './lib/PdfService';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
 import { NotificationCenter } from './components/NotificationCenter';
 import { WorkEscalas } from './components/WorkEscalas';
+
+const parseMonthYear = (str: string) => {
+  if (!str) return { m: 0, y: 0 };
+  const match = str.match(/([a-zA-Z]+|\d+)[/\s-]+(\d{4})/);
+  if (match) {
+    let mStr = match[1].toLowerCase();
+    let y = Number(match[2]);
+    let m = 0;
+    if (!isNaN(Number(mStr))) {
+      m = Number(mStr);
+    } else {
+      const months = {
+        'jan': 1, 'fev': 2, 'feb': 2, 'mar': 3, 'abr': 4, 'apr': 4,
+        'mai': 5, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'aug': 8,
+        'set': 9, 'sep': 9, 'out': 10, 'oct': 10, 'nov': 11, 'dez': 12, 'dec': 12
+      };
+      for (const [key, val] of Object.entries(months)) {
+        if (mStr.startsWith(key)) {
+          m = val;
+          break;
+        }
+      }
+    }
+    return { m, y };
+  }
+  return { m: 0, y: 0 };
+};
 
 // --- Components ---
 
@@ -1061,8 +1089,6 @@ Escalas GMNL ${year}`;
       ]
     });
     if (!orientation) return;
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
-    doc.text("Relatório Acadêmico Mensal", 14, 15);
     
     const tableData = dashboardData.map(item => {
       const presenceTotal = item.aula1_present + item.aula2_present + item.aula3_present + item.aula4_present;
@@ -1079,12 +1105,15 @@ Escalas GMNL ${year}`;
       return [item.month_year, item.subject_name, `${presencePct}%`, `${webPct}%`, `${finalScore} / ${maxPossible}`, status];
     });
 
-    autoTable(doc, {
-      head: [['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status']],
-      body: tableData,
-      startY: 25,
-    });
-    doc.save('relatorio_academico.pdf');
+    await PdfService.exportTableToPDF(
+      'Relatório Acadêmico Mensal',
+      'Desempenho Geral',
+      ['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status'],
+      tableData as string[][],
+      null,
+      orientation as 'p'|'l',
+      'relatorio_academico'
+    );
   };
 
   const handleGlobalExport = () => {
@@ -1136,9 +1165,7 @@ Escalas GMNL ${year}`;
       ]
     });
     if (!orientation) return;
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     const monthYear = new Date(finFilter.year, finFilter.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-    doc.text(`Relatório de Clientes - ${monthYear}`, 14, 15);
 
     const tableData = clientInstallments.map(item => {
       return [
@@ -1151,21 +1178,15 @@ Escalas GMNL ${year}`;
       ];
     });
 
-    autoTable(doc, {
-      head: [['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status']],
-      body: tableData,
-      startY: 25,
-      didDrawCell: (data: any) => {
-        if (data.section === 'body' && data.row.raw[5] === 'Pago') {
-          const { x, y, width, height } = data.cell;
-          data.doc.setLineWidth(0.3);
-          data.doc.setDrawColor(100, 100, 100);
-          const lineY = y + (height / 2);
-          data.doc.line(x + 2, lineY, x + width - 2, lineY);
-        }
-      }
-    });
-    doc.save(`relatorio_clientes_${finFilter.year}_${finFilter.month + 1}.pdf`);
+    await PdfService.exportTableToPDF(
+      `Relatório de Clientes - ${monthYear}`,
+      `Listagem de parcelas do mês`,
+      ['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status'],
+      tableData as string[][],
+      null,
+      orientation as 'p'|'l',
+      `relatorio_clientes_${finFilter.year}_${finFilter.month + 1}`
+    );
   };
 
   const exportFinancialDashboardPDF = async () => {
@@ -1178,111 +1199,85 @@ Escalas GMNL ${year}`;
       ]
     });
     if (!orientation) return;
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
     const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][finFilter.month];
     const title = `Relatório Financeiro - ${monthName} ${finFilter.year}`;
     
-    doc.setFontSize(18);
-    doc.text(title, 14, 20);
+    let html = `
+      <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 24px;">${title}</h1>
+      
+      <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Resumo do Mês</h2>
+      <table style="width: 100%; max-width: 400px; border-collapse: collapse; margin-bottom: 32px; font-size: 14px;">
+        <tr>
+          <td style="padding: 8px 0; font-weight: 700; border-bottom: 1px solid #e5e7eb;">Receitas</td>
+          <td style="padding: 8px 0; text-align: right; border-bottom: 1px solid #e5e7eb;">R$ ${(finDashboard?.month_income || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 700; border-bottom: 1px solid #e5e7eb;">Despesas</td>
+          <td style="padding: 8px 0; text-align: right; border-bottom: 1px solid #e5e7eb;">R$ ${(finDashboard?.month_expense || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 700;">Saldo Final</td>
+          <td style="padding: 8px 0; text-align: right;">R$ ${((finDashboard?.previous_balance || 0) + (finDashboard?.month_income || 0) - (finDashboard?.month_expense || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+        </tr>
+      </table>
+    `;
 
-    // Summary Cards
-    doc.setFontSize(12);
-    doc.text('Resumo do Mês', 14, 30);
-    
-    const summaryData = [
-      ['Receitas', `R$ ${(finDashboard?.month_income || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-      ['Despesas', `R$ ${(finDashboard?.month_expense || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
-      ['Saldo Final', `R$ ${((finDashboard?.previous_balance || 0) + (finDashboard?.month_income || 0) - (finDashboard?.month_expense || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
-    ];
-
-    autoTable(doc, {
-      body: summaryData,
-      startY: 35,
-      theme: 'plain',
-      styles: { fontSize: 11 },
-      columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 60 },
-        1: { halign: 'right' }
-      }
-    });
-
-    let currentY = (doc as any).lastAutoTable.finalY + 10;
-
-    // Accounts Summary
     if (finDashboard?.accounts_summary && finDashboard.accounts_summary.length > 0) {
-      doc.setFontSize(12);
-      doc.text('Saldos das Contas', 14, currentY);
-      
-      const accountsData = finDashboard.accounts_summary.map((acc: any) => [
-        acc.name,
-        acc.type.toUpperCase(),
-        `R$ ${Number(acc.balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-      ]);
-
-      autoTable(doc, {
-        head: [['Conta', 'Tipo', 'Saldo']],
-        body: accountsData,
-        startY: currentY + 5,
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229] }, // Indigo 600
-        styles: { fontSize: 10 },
-        columnStyles: {
-          2: { halign: 'right' }
-        }
-      });
-      currentY = (doc as any).lastAutoTable.finalY + 10;
+      html += `
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Saldos das Contas</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 12px;">
+          <thead>
+            <tr style="background-color: #4f46e5; color: white;">
+              <th style="padding: 10px; text-align: left;">Conta</th>
+              <th style="padding: 10px; text-align: left;">Tipo</th>
+              <th style="padding: 10px; text-align: right;">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${finDashboard.accounts_summary.map((acc: any, i: number) => `
+              <tr style="background-color: ${i % 2 === 0 ? '#f9fafb' : '#ffffff'};">
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${acc.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${acc.type.toUpperCase()}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">R$ ${Number(acc.balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
 
-    // Responsibility Summary
     if (finDashboard?.responsibility_summary && Object.keys(finDashboard.responsibility_summary).length > 0) {
-      doc.setFontSize(12);
-      doc.text('Responsabilidade (Despesas do Mês)', 14, currentY);
-      
-      const respData = Object.entries(finDashboard.responsibility_summary).map(([name, amount]: [string, any]) => [
-        name,
-        `R$ ${Number(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-      ]);
-
-      autoTable(doc, {
-        head: [['Responsável', 'Valor']],
-        body: respData,
-        startY: currentY + 5,
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 10 },
-        columnStyles: {
-          1: { halign: 'right' }
-        }
-      });
-      currentY = (doc as any).lastAutoTable.finalY + 10;
+      html += `
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Responsabilidade (Despesas do Mês)</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 12px;">
+          <thead>
+            <tr style="background-color: #4f46e5; color: white;">
+              <th style="padding: 10px; text-align: left;">Responsável</th>
+              <th style="padding: 10px; text-align: right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(finDashboard.responsibility_summary).map(([name, amount]: [string, any], i: number) => `
+              <tr style="background-color: ${i % 2 === 0 ? '#f9fafb' : '#ffffff'};">
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${name}</td>
+                <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">R$ ${Number(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
 
-    // Capture Pie Chart
     const chartContainer = document.getElementById('expenses-pie-chart-container');
     if (chartContainer) {
       try {
         const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
-        
-        // Calculate dimensions to fit page width
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const margin = 14;
-        const maxImgWidth = pdfWidth - (margin * 2);
-        const imgProps = doc.getImageProperties(imgData);
-        const imgHeight = (imgProps.height * maxImgWidth) / imgProps.width;
-
-        if (currentY + imgHeight > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          currentY = 20;
-        }
-
-        doc.addImage(imgData, 'PNG', margin, currentY, maxImgWidth, imgHeight);
-        currentY += imgHeight + 10;
+        html += `<img src="${imgData}" style="width: 100%; max-width: 600px; height: auto; margin-bottom: 32px;" />`;
       } catch (error) {
         console.error('Error capturing chart:', error);
       }
     }
 
-    // Expense Details for the selected month
     if (finDashboard?.transactions && finDashboard.transactions.length > 0) {
       const expenses = finDashboard.transactions.filter((t: any) => {
         if (t.type !== 'despesa') return false;
@@ -1307,36 +1302,35 @@ Escalas GMNL ${year}`;
       });
 
       if (expenses.length > 0) {
-        if (currentY > 250) {
-          doc.addPage();
-          currentY = 20;
-        }
+        const expensesData = expenses.sort((a: any, b: any) => new Date(a.due_date || a.date).getTime() - new Date(b.due_date || b.date).getTime());
 
-        doc.setFontSize(12);
-        doc.text('Detalhamento de Despesas', 14, currentY);
-
-        const expensesData = expenses.sort((a: any, b: any) => new Date(a.due_date || a.date).getTime() - new Date(b.due_date || b.date).getTime()).map((t: any) => [
-          t.due_date ? new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : formatDateString(t.date),
-          t.description,
-          finCategories.find(c => String(c.id) === String(t.category_id))?.name || 'Sem Categoria',
-          `R$ ${Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-        ]);
-
-        autoTable(doc, {
-          head: [['Vencimento', 'Descrição', 'Categoria', 'Valor']],
-          body: expensesData,
-          startY: currentY + 5,
-          theme: 'striped',
-          headStyles: { fillColor: [220, 38, 38] }, // Red 600
-          styles: { fontSize: 9 },
-          columnStyles: {
-            3: { halign: 'right' }
-          }
-        });
+        html += `
+          <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Detalhamento de Despesas</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 11px;">
+            <thead>
+              <tr style="background-color: #dc2626; color: white;">
+                <th style="padding: 10px; text-align: left;">Vencimento</th>
+                <th style="padding: 10px; text-align: left;">Descrição</th>
+                <th style="padding: 10px; text-align: left;">Categoria</th>
+                <th style="padding: 10px; text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${expensesData.map((t: any, i: number) => `
+                <tr style="background-color: ${i % 2 === 0 ? '#f9fafb' : '#ffffff'};">
+                  <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.due_date ? new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : formatDateString(t.date)}</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${t.description}</td>
+                  <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${finCategories.find(c => String(c.id) === String(t.category_id))?.name || 'Sem Categoria'}</td>
+                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">R$ ${Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
       }
     }
 
-    doc.save(`dashboard_financeiro_${monthName}_${finFilter.year}.pdf`);
+    await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
   };
 
   const formatDateString = (dateStr?: string) => {
@@ -2122,8 +2116,8 @@ Escalas GMNL ${year}`;
                 {dashboardData
                   .filter(item => (selectedPeriodFilter === 'all' || item.period_id.toString() === selectedPeriodFilter) && (selectedSubjectDashboardFilter === 'all' || item.id.toString() === selectedSubjectDashboardFilter))
                   .sort((a, b) => {
-                    const [ma, ya] = a.month_year.split('/').map(Number);
-                    const [mb, yb] = b.month_year.split('/').map(Number);
+                    const { m: ma, y: ya } = parseMonthYear(a.month_year);
+                    const { m: mb, y: yb } = parseMonthYear(b.month_year);
                     if (ya !== yb) return yb - ya;
                     return mb - ma;
                   })
@@ -2867,7 +2861,7 @@ Escalas GMNL ${year}`;
 
               {/* Modal for Account Details */}
               {selectedAccountForDetails && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedAccountForDetails(null)}>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedAccountForDetails(null)}>
                   <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                     <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                       <div>
@@ -5058,10 +5052,12 @@ Escalas GMNL ${year}`;
       </main>
 
       {editingClientInstallment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 md:p-6">
-            <h3 className="text-lg font-bold mb-4">Editar Parcela</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[85vh]">
+            <div className="p-5 md:p-6 border-b border-gray-100 shrink-0">
+              <h3 className="text-lg font-bold">Editar Parcela</h3>
+            </div>
+            <div className="p-5 md:p-6 space-y-4 overflow-y-auto flex-1">
               <Input 
                 label="Valor" 
                 type="number" 
@@ -5086,7 +5082,7 @@ Escalas GMNL ${year}`;
                 </select>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+            <div className="p-5 md:p-6 flex flex-col sm:flex-row gap-3 border-t border-gray-100 shrink-0">
               <button 
                 onClick={() => setEditingClientInstallment(null)}
                 className="flex-1 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl"

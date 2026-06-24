@@ -563,13 +563,118 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
     
     if (!orientation) return;
 
-    const element = document.getElementById('printable-dashboard');
-    if (!element) {
-      await dialogAlert('Erro ao localizar o painel.', 'Erro');
-      return;
-    }
-    
-    await PdfService.exportToPDF('printable-dashboard', `Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}`, orientation as 'p'|'l');
+    const [year, month] = (filterMode === 'month' ? filterMonth : new Date().toISOString().slice(0, 7)).split('-').map(Number);
+    const monthNames = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    const periodLabel = filterMode === 'month' ? `${monthNames[month - 1]} / ${year}` : `ANO DE ${filterYear}`;
+
+    const htmlContent = `
+      <div style="font-family: 'Inter', sans-serif; color: #111827; padding: 10px;">
+        <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 4px; color: #1e1b4b;">Cestas Fixas - Relatório Financeiro</h1>
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 24px;">
+          Referência: <strong>${periodLabel}</strong> 
+          ${filterCategory !== 'all' ? ` | Categoria: <strong>${filterCategory}</strong>` : ''} 
+          ${filterProperty !== 'all' ? ` | Propriedade: <strong>${filterProperty}</strong>` : ''}
+        </p>
+        
+        <!-- Summary Dashboard Grid -->
+        <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+          <div style="flex: 1; background-color: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 16px;">
+            <div style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; tracking-widest">Total Lançado</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0f172a;">R$ ${totals.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          </div>
+          <div style="flex: 1; background-color: #f0fdf4; padding: 12px; border: 1px solid #bbf7d0; border-radius: 16px;">
+            <div style="font-size: 9px; color: #166534; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; tracking-widest">Pago</div>
+            <div style="font-size: 15px; font-weight: 900; color: #166534;">R$ ${totals.paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          </div>
+          <div style="flex: 1; background-color: #fef9c3; padding: 12px; border: 1px solid #fef08a; border-radius: 16px;">
+            <div style="font-size: 9px; color: #854d0e; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; tracking-widest">Pendente</div>
+            <div style="font-size: 15px; font-weight: 900; color: #854d0e;">R$ ${totals.pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          </div>
+          <div style="flex: 1; background-color: #fef2f2; padding: 12px; border: 1px solid #fecaca; border-radius: 16px;">
+            <div style="font-size: 9px; color: #991b1b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; tracking-widest">Vencido</div>
+            <div style="font-size: 15px; font-weight: 900; color: #991b1b;">R$ ${totals.overdue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          </div>
+          <div style="flex: 1; background-color: #f5f3ff; padding: 12px; border: 1px solid #ddd6fe; border-radius: 16px;">
+            <div style="font-size: 9px; color: #5b21b6; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; tracking-widest">Retido</div>
+            <div style="font-size: 15px; font-weight: 900; color: #5b21b6;">R$ ${totals.retained.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+          </div>
+        </div>
+
+        <!-- Section: Lançados -->
+        <h2 style="font-size: 14px; font-weight: 800; margin-bottom: 12px; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">Lançamentos Efetuados (${payments.length})</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569;">
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 30%;">Conta</th>
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 25%;">Propriedade</th>
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 15%;">Vencimento</th>
+              <th style="padding: 10px; text-align: right; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 15%;">Valor</th>
+              <th style="padding: 10px; text-align: center; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 15%;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payments.length === 0 ? `
+              <tr>
+                <td colspan="5" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">Nenhum lançamento registrado para os filtros selecionados.</td>
+              </tr>
+            ` : payments.map((payment, idx) => `
+              <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #0f172a;">${payment.bill?.name || ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #475569;">${payment.bill?.property || ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #64748b;">${payment.due_date ? new Date(payment.due_date + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 800; color: #0f172a;">R$ ${Number(payment.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center;">
+                  <span style="display: inline-block; padding: 3px 8px; border-radius: 9999px; font-size: 8px; font-weight: 900; text-transform: uppercase; 
+                    ${payment.status === 'Pago' ? 'background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;' : 
+                      payment.status === 'Pendente' ? 'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;' : 
+                      payment.status === 'Vencida' ? 'background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 
+                      'background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;'}">
+                    ${payment.status}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <!-- Section: Pendentes a Lançar -->
+        <h2 style="font-size: 14px; font-weight: 800; margin-bottom: 12px; color: #334155; text-transform: uppercase; letter-spacing: 0.05em;">Contas Pendentes a Lançar</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <thead>
+            <tr style="background-color: #f1f5f9; color: #475569;">
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 35%;">Conta</th>
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 30%;">Propriedade</th>
+              <th style="padding: 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 20%;">Categoria</th>
+              <th style="padding: 10px; text-align: center; font-weight: 700; border-bottom: 2px solid #e2e8f0; width: 15%;">Vencimento</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bills.filter(b => {
+              if (filterCategory !== 'all' && b.category !== filterCategory) return false;
+              if (filterProperty !== 'all' && b.property !== filterProperty) return false;
+              return !payments.find(p => p.bill_id === b.id);
+            }).length === 0 ? `
+              <tr>
+                <td colspan="4" style="padding: 24px; text-align: center; color: #15803d; font-weight: 700; font-style: italic; background-color: #f0fdf4;">✓ Parabéns! Todas as contas desta categoria e propriedade foram devidamente lançadas.</td>
+              </tr>
+            ` : bills.filter(b => {
+              if (filterCategory !== 'all' && b.category !== filterCategory) return false;
+              if (filterProperty !== 'all' && b.property !== filterProperty) return false;
+              return !payments.find(p => p.bill_id === b.id);
+            }).map((bill, idx) => `
+              <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #0f172a;">${bill.name}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #475569;">${bill.property}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #64748b;">${bill.category}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 800; color: #4f46e5;">Dia ${bill.due_day}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    await PdfService.exportHTMLToPDF(htmlContent, orientation as 'p'|'l', `Dashboard_Contas_Fixas_${filterMode === 'year' ? filterYear : filterMonth}`);
     await dialogAlert('PDF gerado com sucesso!', 'Sucesso');
   };
 
@@ -1016,13 +1121,13 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
                 <h3 className="font-black text-gray-900 tracking-tight">{editingBill ? 'Editar Conta' : 'Nova Conta Fixa'}</h3>
                 <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} className="text-gray-400" /></button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Nome da Conta</label>
                   <input 
@@ -1075,7 +1180,7 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                   />
                 </div>
               </div>
-              <div className="p-6 bg-gray-50 flex gap-3">
+              <div className="p-6 bg-gray-50 flex gap-3 shrink-0">
                 <button onClick={() => setShowForm(false)} className="flex-1 px-6 py-3 bg-white border border-gray-200 rounded-2xl font-black text-[11px] uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all">Cancelar</button>
                 <button onClick={handleSaveBill} className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Savar Conta</button>
               </div>
@@ -1092,9 +1197,9 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+              <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
                 <div className="flex flex-col">
                   <h3 className="font-black text-gray-900 tracking-tight">{paymentForm.id ? 'Editar Lançamento' : 'Lançar Pagamento'}</h3>
                   <div className="flex items-center gap-2 mt-1">
@@ -1110,8 +1215,9 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                 <button onClick={() => setPaymentForm(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={20} className="text-gray-400" /></button>
               </div>
 
-              {/* Date Information Row */}
-              <div className="bg-white p-4 border-b border-gray-100">
+              <div className="flex-1 overflow-y-auto">
+                {/* Date Information Row */}
+                <div className="bg-white p-4 border-b border-gray-100">
                 <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Ref. Mensal</span>
                 <div className="flex items-center gap-2">
                   <History size={14} className="text-amber-500" />
@@ -1165,7 +1271,8 @@ export function FixedBillsManager({ supabase }: { supabase: any }) {
                   />
                 </div>
               </div>
-              <div className="p-6 bg-gray-50 flex gap-3">
+              </div>
+              <div className="p-6 bg-gray-50 flex gap-3 shrink-0">
                 <button onClick={() => setPaymentForm(null)} className="flex-1 px-6 py-3 bg-white border border-gray-200 rounded-2xl font-black text-[11px] uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-all">Cancelar</button>
                 <button onClick={handleSavePayment} className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Salvar Pagamento</button>
               </div>

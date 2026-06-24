@@ -150,9 +150,9 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
             >
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto">
                 <div className="flex flex-col items-center text-center gap-4 mb-4">
                   <div className={`p-4 rounded-full ${
                     dialog.type === 'confirm' 

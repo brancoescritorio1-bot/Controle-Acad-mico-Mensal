@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useDialog } from './DialogContext';
+import { PdfService } from '../lib/PdfService';
 
 interface ChacaraAccountabilityManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -259,67 +260,62 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
     });
     if (!orientation) return;
 
-    const doc = new jsPDF(orientation as 'p'|'l', 'mm', 'a4');
-    
-    // Header
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, 0, 210, 30, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('Prestação de Contas - Chácara', 14, 20);
-    
-    // Info
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.text(`Mês de Referência: ${monthReference}`, 14, 40);
-    
-    // Financial Summary
-    doc.setFontSize(14);
-    doc.text('Resumo Financeiro', 14, 55);
-    doc.setDrawColor(79, 70, 229);
-    doc.line(14, 57, 196, 57);
-    
-    doc.setFontSize(10);
-    doc.text(`Saldo Inicial Fundo Reserva: R$ ${form.initial_reserve_fund.toFixed(2)}`, 14, 65);
-    doc.text(`Saldo Inicial Rateio: R$ ${form.initial_apportionment.toFixed(2)}`, 14, 71);
-    doc.text(`Saldo Inicial Prestadores: R$ ${form.initial_services.toFixed(2)}`, 14, 77);
-    doc.text(`Total Arrecadado no Mês: R$ ${accountabilityTotals?.total_collected?.toFixed(2) || '0.00'}`, 14, 83);
-    doc.text(`Total de Despesas: R$ ${totalExpenses.toFixed(2)}`, 14, 89);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Saldo Final: R$ ${finalBalance.toFixed(2)}`, 14, 101);
-    doc.setFont('helvetica', 'normal');
+    let html = `
+      <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Prestação de Contas - Chácara</h1>
+      <p style="font-size: 14px; color: #6b7280; margin-bottom: 24px;">Mês de Referência: ${monthReference}</p>
+      
+      <div style="background-color: #f3f4f6; padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Resumo Financeiro</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px;">
+          <div>Saldo Inicial Fundo Reserva: R$ ${form.initial_reserve_fund.toFixed(2)}</div>
+          <div>Saldo Inicial Rateio: R$ ${form.initial_apportionment.toFixed(2)}</div>
+          <div>Saldo Inicial Prestadores: R$ ${form.initial_services.toFixed(2)}</div>
+          <div>Total Arrecadado no Mês: R$ ${accountabilityTotals?.total_collected?.toFixed(2) || '0.00'}</div>
+          <div>Total de Despesas: R$ ${totalExpenses.toFixed(2)}</div>
+        </div>
+        <div style="margin-top: 16px; font-size: 18px; font-weight: 800; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+          Saldo Final: R$ ${finalBalance.toFixed(2)}
+        </div>
+      </div>
+    `;
 
-    // Expenses Table
     if (expenses.length > 0) {
-      autoTable(doc, {
-        startY: 110,
-        head: [['Data', 'Descrição', 'Categoria', 'Valor']],
-        body: expenses.map(exp => [
-          new Date(exp.date + 'T12:00:00').toLocaleDateString('pt-BR'),
-          exp.description,
-          exp.category,
-          `R$ ${exp.amount.toFixed(2)}`
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229] },
-      });
+      html += `
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Despesas</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 24px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; font-weight: 700;">Data</th>
+              <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; font-weight: 700;">Descrição</th>
+              <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; font-weight: 700;">Categoria</th>
+              <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; font-weight: 700;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${expenses.map((exp, idx) => `
+              <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                <td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">${new Date(exp.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                <td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">${exp.description}</td>
+                <td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">${exp.category}</td>
+                <td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">R$ ${exp.amount.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
 
-    // Receipts List
     const receipts = expenses.filter(exp => exp.receipt_url);
     if (receipts.length > 0) {
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
-      doc.text('Comprovantes Anexados', 14, finalY);
-      doc.setFontSize(10);
-      receipts.forEach((exp, index) => {
-        doc.text(`${index + 1}. ${exp.description}: ${exp.receipt_url}`, 14, finalY + 10 + (index * 6));
-      });
+      html += `
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">Comprovantes Anexados</h2>
+        <ul style="font-size: 12px; list-style-type: decimal; margin-left: 20px;">
+          ${receipts.map(exp => `<li style="margin-bottom: 8px;">${exp.description}: <a href="${exp.receipt_url}" style="color: #4f46e5; word-break: break-all;">${exp.receipt_url}</a></li>`).join('')}
+        </ul>
+      `;
     }
 
-    doc.save(`prestacao-contas-${monthReference}.pdf`);
+    await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `prestacao-contas-${monthReference.replace('/', '_')}`);
   };
 
   useEffect(() => {
@@ -650,11 +646,13 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }} transition={{ duration: 0.15, ease: "easeOut" }}
-              className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl"
+              className="bg-white rounded-3xl w-full max-w-md shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
             >
-              <h3 className="text-xl font-black text-gray-900 mb-6">Nova Despesa</h3>
+              <div className="p-6 border-b border-gray-100 shrink-0">
+                <h3 className="text-xl font-black text-gray-900">Nova Despesa</h3>
+              </div>
               
-              <div className="space-y-4 mb-6">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Descrição</label>
                   <input 
@@ -728,7 +726,7 @@ export const ChacaraAccountabilityManager: React.FC<ChacaraAccountabilityManager
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row gap-3 shrink-0">
                 <button 
                   onClick={() => setShowExpenseModal(false)}
                   className="w-full sm:flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"

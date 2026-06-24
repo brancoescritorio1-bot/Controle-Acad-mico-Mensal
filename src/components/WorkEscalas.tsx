@@ -206,9 +206,9 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
 
       {isEscalaModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-xl">
-            <h3 className="font-bold text-xl">Nova Escala</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-sm flex flex-col max-h-[85vh] shadow-xl">
+            <h3 className="font-bold text-xl mb-4 shrink-0">Nova Escala</h3>
+            <div className="space-y-3 overflow-y-auto flex-1 pb-4">
               <input className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={newEscalaName} onChange={(e) => setNewEscalaName(e.target.value)} placeholder="Nome da escala" />
               <select className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={selectedTemplateId || ''} onChange={(e) => {
                 const t = templates.find(t => t.id === parseInt(e.target.value));
@@ -222,7 +222,7 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
               <input className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={subjectTemplate} onChange={(e) => setSubjectTemplate(e.target.value)} placeholder="Assunto" />
               <textarea className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={bodyTemplate} onChange={(e) => setBodyTemplate(e.target.value)} placeholder="Corpo" rows={4} />
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 shrink-0 border-t border-gray-100 pt-4 mt-2">
               <button onClick={() => { handleCreateEscala(); setIsEscalaModalOpen(false); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700">Salvar Escala</button>
               <button onClick={() => setIsEscalaModalOpen(false)} className="flex-1 bg-gray-200 py-2.5 rounded-xl font-bold hover:bg-gray-300">Cancelar</button>
             </div>
@@ -232,14 +232,14 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
 
       {isTemplateModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-xl">
-            <h3 className="font-bold text-xl">Novo Modelo</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-sm flex flex-col max-h-[85vh] shadow-xl">
+            <h3 className="font-bold text-xl mb-4 shrink-0">Novo Modelo</h3>
+            <div className="space-y-3 overflow-y-auto flex-1 pb-4">
               <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="Nome" className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" />
               <input value={newTemplateSubject} onChange={(e) => setNewTemplateSubject(e.target.value)} placeholder="Assunto" className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" />
               <textarea value={newTemplateBody} onChange={(e) => setNewTemplateBody(e.target.value)} placeholder="Corpo" className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" rows={4} />
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 shrink-0 border-t border-gray-100 pt-4 mt-2">
               <button 
                 onClick={() => { 
                     if (editingTemplateId) handleUpdateTemplate();
@@ -257,9 +257,9 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
 
       {isEditEscalaModalOpen && editingEscalaId && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-xl">
-            <h3 className="font-bold text-xl">Editar Escala</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-6 rounded-3xl w-full max-w-sm flex flex-col max-h-[85vh] shadow-xl">
+            <h3 className="font-bold text-xl mb-4 shrink-0">Editar Escala</h3>
+            <div className="space-y-3 overflow-y-auto flex-1 pb-4">
               <input className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={editingEscalaName} onChange={(e) => setEditingEscalaName(e.target.value)} placeholder="Nome da escala" />
               <select className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={selectedTemplateId || ''} onChange={(e) => {
                 const t = templates.find(t => t.id === parseInt(e.target.value));
@@ -275,7 +275,7 @@ export const WorkEscalas: React.FC<WorkEscalasProps> = ({ fetchWithAuth, finFilt
               <input className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={editingSubject} onChange={(e) => setEditingSubject(e.target.value)} placeholder="Assunto" />
               <textarea className="w-full px-4 py-2.5 border rounded-xl bg-gray-50" value={editingBody} onChange={(e) => setEditingBody(e.target.value)} placeholder="Corpo" rows={4} />
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 shrink-0 border-t border-gray-100 pt-4 mt-2">
               <button onClick={() => handleEditEscala(editingEscalaId)} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700">Salvar Alterações</button>
               <button onClick={() => { setIsEditEscalaModalOpen(false); setEditingEscalaId(null); }} className="flex-1 bg-gray-200 py-2.5 rounded-xl font-bold hover:bg-gray-300">Cancelar</button>
             </div>

@@ -14,7 +14,7 @@ interface ChacaraFinanceDashboardProps {
 }
 
 export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = ({ bills, expenses = [], onUpdate, fetchWithAuth, filterMonth, setFilterMonth }) => {
-  const { confirm: dialogConfirm, alert: dialogAlert, askOptions } = useDialog();
+  const { confirm: dialogConfirm, alert: dialogAlert, askOptions, preview } = useDialog();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -130,6 +130,10 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
   const handleExport = async () => {
     if (!dashboardRef.current) return;
     
+    // Show preview first
+    const confirmed = await preview(dashboardRef.current, 'Dashboard Financeiro');
+    if (!confirmed) return;
+
     // Define pre/post-processing for the PDF export
     const preProcess = (el: HTMLElement) => {
       el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
@@ -138,11 +142,6 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
     };
 
     const postProcess = (el: HTMLElement) => {
-      // Need to restore display. How to get original display?
-      // Actually, passing el directly works, but I need to restore the element's display.
-      // The old code used querySelectorAll again in finally.
-      // If I just set display to '' (empty), it restores the default, which is usually correct
-      // (as it was before the inline style change). Let's hope that works.
       el.querySelectorAll('button, .no-export, .print\\:hidden').forEach((el: any) => {
         el.style.display = '';
       });
@@ -531,7 +530,7 @@ export const ChacaraFinanceDashboard: React.FC<ChacaraFinanceDashboardProps> = (
       )}
 
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-5 md:p-6 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">Nova Despesa</h3>
