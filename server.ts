@@ -33,6 +33,11 @@ const supabase = createClient(supabaseUrl, serviceRoleKey || supabaseKey, {
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+app.use((req, res, next) => {
+  console.log(`Request: ${req.method} ${req.path}`);
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
