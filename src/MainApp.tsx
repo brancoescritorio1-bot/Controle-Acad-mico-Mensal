@@ -1106,6 +1106,7 @@ Escalas GMNL ${year}`;
     });
 
     setIsGeneratingPdf(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
       await PdfService.exportTableToPDF(
         'Relatório Acadêmico Mensal',
@@ -1184,6 +1185,7 @@ Escalas GMNL ${year}`;
     });
 
     setIsGeneratingPdf(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
       await PdfService.exportTableToPDF(
         `Relatório de Clientes - ${monthYear}`,
@@ -1342,6 +1344,7 @@ Escalas GMNL ${year}`;
     }
 
     setIsGeneratingPdf(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
       await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
     } finally {
