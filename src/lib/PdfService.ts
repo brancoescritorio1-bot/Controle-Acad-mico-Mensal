@@ -39,7 +39,7 @@ export const PdfService = {
         // Capture the entire content as one high-quality image
         const canvas = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 2,
+            pixelRatio: 4, // Upgraded to 4x for high-res/300 DPI+
             backgroundColor: '#ffffff'
         });
         
@@ -149,33 +149,51 @@ export const PdfService = {
     action: 'save' | 'share' = 'save',
     shareText?: string
   ) => {
-    // Create a wrapper that is fixed and positioned at 0,0 but placed behind everything
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'fixed';
-    wrapper.style.left = '0';
-    wrapper.style.top = '0';
-    wrapper.style.width = '100vw';
-    wrapper.style.height = '100vh';
-    wrapper.style.overflow = 'hidden';
-    wrapper.style.zIndex = '-9999';
-    wrapper.style.opacity = '1';
-    wrapper.style.pointerEvents = 'none';
-    wrapper.style.backgroundColor = 'transparent';
-
     const container = document.createElement('div');
     container.style.width = orientation === 'p' ? '800px' : '1120px';
     container.style.backgroundColor = 'white';
     container.style.padding = '40px';
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
     container.innerHTML = `<div style="font-family: 'Inter', sans-serif; color: #111827;">${htmlContent}</div>`;
     
-    wrapper.appendChild(container);
-    document.body.appendChild(wrapper);
+    document.body.appendChild(container);
     
     try {
-      await PdfService.exportToPDF(container, fileName, orientation, action, shareText);
+        const canvas = await toPng(container, {
+            quality: 1.0,
+            pixelRatio: 4,
+            backgroundColor: '#ffffff'
+        });
+        
+        const pdf = new jsPDF(orientation, 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        const imgProps = pdf.getImageProperties(canvas);
+        const vScale = pdfWidth / container.offsetWidth;
+        const scaledHeight = container.offsetHeight * vScale;
+        
+        pdf.addImage(canvas, 'PNG', 0, 0, pdfWidth, scaledHeight, undefined, 'FAST');
+        
+        if (action === 'save') pdf.save(`${fileName}.pdf`);
+        else if (action === 'share') {
+            const pdfBlob = pdf.output('blob');
+            const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
+            if (navigator.share) {
+              navigator.share({
+                files: [file],
+                title: fileName,
+                text: shareText || 'Segue o documento em PDF.',
+              }).catch(console.error);
+            } else {
+              const url = URL.createObjectURL(pdfBlob);
+              window.open(url);
+            }
+        }
     } finally {
-      if (document.body.contains(wrapper)) {
-        document.body.removeChild(wrapper);
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
       }
     }
   },
@@ -191,56 +209,36 @@ export const PdfService = {
     action: 'save' | 'share' = 'save',
     shareText?: string
   ) => {
-    // Create a wrapper that is fixed and positioned at 0,0 but placed behind everything
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'fixed';
-    wrapper.style.left = '0';
-    wrapper.style.top = '0';
-    wrapper.style.width = '100vw';
-    wrapper.style.height = '100vh';
-    wrapper.style.overflow = 'hidden';
-    wrapper.style.zIndex = '-9999';
-    wrapper.style.opacity = '1';
-    wrapper.style.pointerEvents = 'none';
-    wrapper.style.backgroundColor = 'transparent';
+    const doc = new jsPDF(orientation, 'mm', 'a4');
+    doc.setFontSize(20);
+    doc.text(title, 14, 22);
+    doc.setFontSize(12);
+    doc.text(subtitle, 14, 30);
+    
+    (doc as any).autoTable({
+      head: [headers],
+      body: data,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [66, 66, 66] },
+      styles: { fontSize: 10, font: 'helvetica' },
+    });
 
-    const tableContainer = document.createElement('div');
-    tableContainer.style.width = orientation === 'p' ? '800px' : '1120px';
-    tableContainer.style.backgroundColor = 'white';
-    tableContainer.style.padding = '40px';
-    
-    // Build HTML string
-    let html = `
-      <div style="font-family: 'Inter', sans-serif; color: #111827;">
-        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">${title}</h1>
-        <p style="font-size: 14px; color: #6b7280; margin-bottom: 24px;">${subtitle}</p>
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 24px;">
-          <thead>
-            <tr>
-              ${headers.map(h => `<th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; color: #4b5563; font-weight: 700;">${h}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map((row, index) => `
-              <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
-                ${row.map(cell => `<td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">${cell}</td>`).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        ${totalText ? `<div style="font-size: 16px; font-weight: 700; text-align: right; margin-top: 24px;">${totalText}</div>` : ''}
-      </div>
-    `;
-    tableContainer.innerHTML = html;
-    wrapper.appendChild(tableContainer);
-    document.body.appendChild(wrapper);
-    
-    try {
-      await PdfService.exportToPDF(tableContainer, fileName, orientation, action, shareText);
-    } finally {
-      if (document.body.contains(wrapper)) {
-        document.body.removeChild(wrapper);
-      }
+    if (totalText) {
+      const finalY = (doc as any).lastAutoTable.finalY || 40;
+      doc.text(totalText, 196, finalY + 10, { align: 'right' });
+    }
+
+    if (action === 'save') {
+        doc.save(`${fileName}.pdf`);
+    } else if (action === 'share') {
+        const pdfBlob = doc.output('blob');
+        const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
+        if (navigator.share) {
+            await navigator.share({ files: [file], title: fileName, text: shareText || '' });
+        } else {
+            window.open(URL.createObjectURL(pdfBlob));
+        }
     }
   }
 };
