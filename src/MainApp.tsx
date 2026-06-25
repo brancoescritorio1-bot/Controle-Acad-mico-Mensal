@@ -57,7 +57,6 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Subject, Attendance, Activities, WebContent, DashboardData, Period, FinancialCategory, FinancialAccount, FinancialTransaction, Client, ClientSale, ClientInstallment, PersonalTask } from './types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { toPng } from 'html-to-image';
 import { PdfService } from './lib/PdfService';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
@@ -1270,11 +1269,12 @@ Escalas GMNL ${year}`;
 
     const chartContainer = document.getElementById('expenses-pie-chart-container');
     if (chartContainer) {
-      try {
-        const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
-        html += `<img src="${imgData}" style="width: 100%; max-width: 600px; height: auto; margin-bottom: 32px;" />`;
-      } catch (error) {
-        console.error('Error capturing chart:', error);
+      const svg = chartContainer.querySelector('svg');
+      if (svg) {
+        // Serialize SVG to string
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(svg);
+        html += `<div style="width: 100%; max-width: 600px; margin-bottom: 32px;">${svgString}</div>`;
       }
     }
 
