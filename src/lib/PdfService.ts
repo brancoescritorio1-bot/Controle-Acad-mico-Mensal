@@ -25,6 +25,10 @@ export const PdfService = {
     try {
         if (preProcess) preProcess(element);
 
+        // Explicitly remove all SVGs to avoid html2canvas loading issues
+        const svgs = element.querySelectorAll('svg');
+        svgs.forEach(svg => svg.remove());
+
         const pdf = new jsPDF(orientation, 'mm', 'a4');
         
         await pdf.html(element, {
@@ -78,6 +82,10 @@ export const PdfService = {
     container.style.left = '-9999px';
     container.innerHTML = `<div style="font-family: 'Inter', sans-serif; color: #111827;">${htmlContent}</div>`;
     
+    // Explicitly remove all SVGs to avoid html2canvas loading issues
+    const svgs = container.querySelectorAll('svg');
+    svgs.forEach(svg => svg.remove());
+    
     document.body.appendChild(container);
     
     try {
@@ -108,6 +116,7 @@ export const PdfService = {
             html2canvas: {
                 logging: false,
                 useCORS: true,
+                // The SVGs are already removed, but this is a safety measure
                 ignoreElements: (el) => el.tagName === 'svg',
             },
         });

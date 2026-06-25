@@ -275,6 +275,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [clientSearch, setClientSearch] = useState('');
   const [clientSales, setClientSales] = useState<ClientSale[]>([]);
   const [clientInstallments, setClientInstallments] = useState<ClientInstallment[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [clientForm, setClientForm] = useState({ name: '', phone: '' });
   const [whatsappMessageTemplate, setWhatsappMessageTemplate] = useState('Olá {nome}, tudo bem?');
   const [sentMessages, setSentMessages] = useState<string[]>([]);
@@ -1104,15 +1105,20 @@ Escalas GMNL ${year}`;
       return [item.month_year, item.subject_name, `${presencePct}%`, `${webPct}%`, `${finalScore} / ${maxPossible}`, status];
     });
 
-    await PdfService.exportTableToPDF(
-      'Relatório Acadêmico Mensal',
-      'Desempenho Geral',
-      ['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status'],
-      tableData as string[][],
-      null,
-      orientation as 'p'|'l',
-      'relatorio_academico'
-    );
+    setIsGeneratingPdf(true);
+    try {
+      await PdfService.exportTableToPDF(
+        'Relatório Acadêmico Mensal',
+        'Desempenho Geral',
+        ['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status'],
+        tableData as string[][],
+        null,
+        orientation as 'p'|'l',
+        'relatorio_academico'
+      );
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleGlobalExport = () => {
@@ -1177,15 +1183,20 @@ Escalas GMNL ${year}`;
       ];
     });
 
-    await PdfService.exportTableToPDF(
-      `Relatório de Clientes - ${monthYear}`,
-      `Listagem de parcelas do mês`,
-      ['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status'],
-      tableData as string[][],
-      null,
-      orientation as 'p'|'l',
-      `relatorio_clientes_${finFilter.year}_${finFilter.month + 1}`
-    );
+    setIsGeneratingPdf(true);
+    try {
+      await PdfService.exportTableToPDF(
+        `Relatório de Clientes - ${monthYear}`,
+        `Listagem de parcelas do mês`,
+        ['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status'],
+        tableData as string[][],
+        null,
+        orientation as 'p'|'l',
+        `relatorio_clientes_${finFilter.year}_${finFilter.month + 1}`
+      );
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const exportFinancialDashboardPDF = async () => {
@@ -1330,7 +1341,12 @@ Escalas GMNL ${year}`;
       }
     }
 
-    await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
+    setIsGeneratingPdf(true);
+    try {
+      await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const formatDateString = (dateStr?: string) => {
@@ -5097,6 +5113,12 @@ Escalas GMNL ${year}`;
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isGeneratingPdf && (
+        <div className="fixed inset-0 bg-white/80 z-[100] flex items-center justify-center">
+          <div className="text-xl font-bold">Gerando PDF, aguarde...</div>
         </div>
       )}
 
