@@ -57,6 +57,7 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Subject, Attendance, Activities, WebContent, DashboardData, Period, FinancialCategory, FinancialAccount, FinancialTransaction, Client, ClientSale, ClientInstallment, PersonalTask } from './types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toPng } from 'html-to-image';
 import { PdfService } from './lib/PdfService';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
@@ -275,7 +276,6 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [clientSearch, setClientSearch] = useState('');
   const [clientSales, setClientSales] = useState<ClientSale[]>([]);
   const [clientInstallments, setClientInstallments] = useState<ClientInstallment[]>([]);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [clientForm, setClientForm] = useState({ name: '', phone: '' });
   const [whatsappMessageTemplate, setWhatsappMessageTemplate] = useState('Olá {nome}, tudo bem?');
   const [sentMessages, setSentMessages] = useState<string[]>([]);
@@ -1105,21 +1105,15 @@ Escalas GMNL ${year}`;
       return [item.month_year, item.subject_name, `${presencePct}%`, `${webPct}%`, `${finalScore} / ${maxPossible}`, status];
     });
 
-    setIsGeneratingPdf(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    try {
-      await PdfService.exportTableToPDF(
-        'Relatório Acadêmico Mensal',
-        'Desempenho Geral',
-        ['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status'],
-        tableData as string[][],
-        null,
-        orientation as 'p'|'l',
-        'relatorio_academico'
-      );
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    await PdfService.exportTableToPDF(
+      'Relatório Acadêmico Mensal',
+      'Desempenho Geral',
+      ['Mês', 'Matéria', 'Presença', 'Web', 'Nota Final', 'Status'],
+      tableData as string[][],
+      null,
+      orientation as 'p'|'l',
+      'relatorio_academico'
+    );
   };
 
   const handleGlobalExport = () => {
@@ -1184,21 +1178,15 @@ Escalas GMNL ${year}`;
       ];
     });
 
-    setIsGeneratingPdf(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    try {
-      await PdfService.exportTableToPDF(
-        `Relatório de Clientes - ${monthYear}`,
-        `Listagem de parcelas do mês`,
-        ['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status'],
-        tableData as string[][],
-        null,
-        orientation as 'p'|'l',
-        `relatorio_clientes_${finFilter.year}_${finFilter.month + 1}`
-      );
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    await PdfService.exportTableToPDF(
+      `Relatório de Clientes - ${monthYear}`,
+      `Listagem de parcelas do mês`,
+      ['Cliente', 'Descrição', 'Parcela', 'Vencimento', 'Valor', 'Status'],
+      tableData as string[][],
+      null,
+      orientation as 'p'|'l',
+      `relatorio_clientes_${finFilter.year}_${finFilter.month + 1}`
+    );
   };
 
   const exportFinancialDashboardPDF = async () => {
@@ -1282,12 +1270,11 @@ Escalas GMNL ${year}`;
 
     const chartContainer = document.getElementById('expenses-pie-chart-container');
     if (chartContainer) {
-      const svg = chartContainer.querySelector('svg');
-      if (svg) {
-        // Serialize SVG to string
-        const serializer = new XMLSerializer();
-        const svgString = serializer.serializeToString(svg);
-        html += `<div style="width: 100%; max-width: 600px; margin-bottom: 32px;">${svgString}</div>`;
+      try {
+        const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
+        html += `<img src="${imgData}" style="width: 100%; max-width: 600px; height: auto; margin-bottom: 32px;" />`;
+      } catch (error) {
+        console.error('Error capturing chart:', error);
       }
     }
 
@@ -1343,13 +1330,7 @@ Escalas GMNL ${year}`;
       }
     }
 
-    setIsGeneratingPdf(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    try {
-      await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
+    await PdfService.exportHTMLToPDF(html, orientation as 'p'|'l', `dashboard_financeiro_${monthName}_${finFilter.year}`);
   };
 
   const formatDateString = (dateStr?: string) => {
@@ -5116,12 +5097,6 @@ Escalas GMNL ${year}`;
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {isGeneratingPdf && (
-        <div className="fixed inset-0 bg-white/80 z-[100] flex items-center justify-center">
-          <div className="text-xl font-bold">Gerando PDF, aguarde...</div>
         </div>
       )}
 
