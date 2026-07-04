@@ -279,3 +279,15 @@ export interface EscalaEmail {
   email: string;
   created_at?: string;
 }
+
+export interface AppVersion {
+  id: number;
+  version_number: string;
+  title: string;
+  description: string;
+  update_type: string;
+  status: 'Desenvolvimento' | 'Testes' | 'Publicada' | string;
+  published_at: string | null;
+  created_at: string;
+}
+

@@ -18,6 +18,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  GitBranch,
   Bell,
   Wallet,
   TrendingUp,
@@ -63,6 +64,7 @@ import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie } from 'recharts';
 import { NotificationCenter } from './components/NotificationCenter';
 import { WorkEscalas } from './components/WorkEscalas';
+import { AppVersionsManager } from './components/AppVersionsManager';
 
 const parseMonthYear = (str: string) => {
   if (!str) return { m: 0, y: 0 };
@@ -211,6 +213,7 @@ export default function MainApp({ onLogout, session, supabaseClient }: { onLogou
   const [loading, setLoading] = useState(false);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [usersSubTab, setUsersSubTab] = useState<'list' | 'versions'>('list');
 
   // Form States
   const [subjectForm, setSubjectForm] = useState({ 
@@ -2660,44 +2663,76 @@ Escalas GMNL ${year}`;
             </motion.div>
           )}
           {activeTab === 'users' && (
-            <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
-              <Card title="Usuários Cadastrados" icon={Shield}>
-                {usersError ? (
-                  <div className="text-center py-8 text-red-500">
-                    <AlertCircle className="mx-auto h-8 w-8 mb-2" />
-                    <p className="font-semibold">Erro ao carregar usuários</p>
-                    <p className="text-sm mt-1">{usersError}</p>
-                    <p className="text-xs mt-2 text-gray-500">Verifique a variável SUPABASE_SERVICE_ROLE_KEY no servidor.</p>
-                  </div>
-                ) : usersList.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>Nenhum usuário encontrado.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
-                        <tr>
-                          <th className="px-4 py-3 rounded-tl-xl">Email</th>
-                          <th className="px-4 py-3">Criado em</th>
-                          <th className="px-4 py-3 rounded-tr-xl">Último Acesso</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {usersList.map((u: any) => (
-                          <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-gray-900">{u.email}</td>
-                            <td className="px-4 py-3 text-gray-500">{new Date(u.created_at).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-gray-500">
-                              {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : 'Nunca'}
-                            </td>
+            <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }} className="space-y-6">
+              {/* Inner Tab Switcher */}
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
+                <button
+                  onClick={() => setUsersSubTab('list')}
+                  className={cn(
+                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all",
+                    usersSubTab === 'list' 
+                      ? "bg-white text-indigo-600 shadow-sm" 
+                      : "text-gray-500 hover:text-gray-800"
+                  )}
+                >
+                  <Shield size={16} />
+                  Usuários do Sistema
+                </button>
+                <button
+                  onClick={() => setUsersSubTab('versions')}
+                  className={cn(
+                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all",
+                    usersSubTab === 'versions' 
+                      ? "bg-white text-indigo-600 shadow-sm" 
+                      : "text-gray-500 hover:text-gray-800"
+                  )}
+                >
+                  <GitBranch size={16} />
+                  Versões do Aplicativo
+                </button>
+              </div>
+
+              {usersSubTab === 'list' ? (
+                <Card title="Usuários Cadastrados" icon={Shield}>
+                  {usersError ? (
+                    <div className="text-center py-8 text-red-500">
+                      <AlertCircle className="mx-auto h-8 w-8 mb-2" />
+                      <p className="font-semibold">Erro ao carregar usuários</p>
+                      <p className="text-sm mt-1">{usersError}</p>
+                      <p className="text-xs mt-2 text-gray-500">Verifique a variável SUPABASE_SERVICE_ROLE_KEY no servidor.</p>
+                    </div>
+                  ) : usersList.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Nenhum usuário encontrado.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                          <tr>
+                            <th className="px-4 py-3 rounded-tl-xl">Email</th>
+                            <th className="px-4 py-3">Criado em</th>
+                            <th className="px-4 py-3 rounded-tr-xl">Último Acesso</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {usersList.map((u: any) => (
+                            <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 font-medium text-gray-900">{u.email}</td>
+                              <td className="px-4 py-3 text-gray-500">{new Date(u.created_at).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 text-gray-500">
+                                {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : 'Nunca'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              ) : (
+                <AppVersionsManager fetchWithAuth={fetchWithAuth} />
+              )}
             </motion.div>
           )}
 
@@ -4587,17 +4622,6 @@ Escalas GMNL ${year}`;
           {activeModule === 'work' && (
             <motion.div key="work" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-                  <button 
-                    onClick={() => setActiveTab('work_clients')}
-                    className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'work_clients' ? 'text-indigo-600 bg-white shadow-sm' : 'text-gray-500')}
-                  >Clientes</button>
-                  <button 
-                    onClick={() => setActiveTab('work_escalas')}
-                    className={cn("px-4 py-2 text-sm font-bold rounded-lg transition-all", activeTab === 'work_escalas' ? 'text-indigo-600 bg-white shadow-sm' : 'text-gray-500')}
-                  >Escalas</button>
-                </div>
-                
                 <div className="flex items-center gap-2">
                   <Calendar size={20} className="text-indigo-600" />
                   <h2 className="font-bold text-gray-800 text-sm md:text-base">Filtro Mensal</h2>
@@ -5139,6 +5163,7 @@ Escalas GMNL ${year}`;
           ) : (
             <>
               <TabButton active={activeTab === 'work_clients'} onClick={() => setActiveTab('work_clients')} icon={Users} label="Clientes" />
+              <TabButton active={activeTab === 'work_escalas'} onClick={() => setActiveTab('work_escalas')} icon={Calendar} label="Escalas" />
               <TabButton active={activeTab === 'work_messages'} onClick={() => setActiveTab('work_messages')} icon={WhatsAppIcon} label="Mensagens" />
               <TabButton active={activeTab === 'work_safety'} onClick={() => setActiveTab('work_safety')} icon={AlertTriangle} label="Segurança" />
             </>
