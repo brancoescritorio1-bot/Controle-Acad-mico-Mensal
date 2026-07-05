@@ -66,6 +66,28 @@ app.get("/api/config", (req, res) => {
     res.json({ message: "test success" });
   });
 
+  app.get("/api/test-users", async (req, res) => {
+    try {
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceRoleKey) {
+        return res.status(501).json({ error: "Service role key missing" });
+      }
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data?.users || []);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || String(err) });
+    }
+  });
+
   // Authentication Middleware
   const authenticateUser = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!req.path.startsWith("/api") || req.path === "/api/config") {
@@ -92,8 +114,12 @@ app.get("/api/config", (req, res) => {
 
       (req as any).user = user;
       next();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Auth middleware exception:", err);
+      const fs = require('fs');
+      try {
+        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] AUTH ERROR: ${err.message || String(err)}\n${err.stack || ''}\n\n`);
+      } catch (e) {}
       return res.status(500).json({ error: "Internal server error in auth middleware" });
     }
   };
@@ -151,6 +177,10 @@ app.get("/api/config", (req, res) => {
       res.json(safeUsers);
     } catch (err: any) {
       console.error("Unexpected error in /api/users:", err);
+      const fs = require('fs');
+      try {
+        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] ROUTE ERROR on /api/users: ${err.message || String(err)}\n${err.stack || ''}\n\n`);
+      } catch (e) {}
       res.status(500).json({ error: `Server Error: ${err.message || String(err)}` });
     }
   });
@@ -2439,6 +2469,10 @@ app.get("/api/config", (req, res) => {
 
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
       console.error("Global Express Error:", err);
+      const fs = require('fs');
+      try {
+        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] GLOBAL ERROR on ${req.method} ${req.url}: ${err.message}\n${err.stack}\n\n`);
+      } catch (e) {}
       res.status(500).json({ error: "Internal Server Error", message: err.message, stack: err.stack });
     });
 
