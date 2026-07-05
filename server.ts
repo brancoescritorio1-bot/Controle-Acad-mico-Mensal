@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
-import Database from "better-sqlite3";
 
 let currentDir = "";
 try {
@@ -12,23 +11,6 @@ try {
 } catch (e) {
   currentDir = __dirname || process.cwd();
 }
-
-// Initialize SQLite fallback database for App Versions
-const dbPath = path.join(currentDir, 'app_versions.db');
-const localDb = new Database(dbPath);
-localDb.exec(`
-  CREATE TABLE IF NOT EXISTS app_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    version_number TEXT NOT NULL UNIQUE,
-    published_at TEXT,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    update_type TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    user_id TEXT
-  );
-`);
 
 dotenv.config();
 
@@ -66,28 +48,6 @@ app.get("/api/config", (req, res) => {
     res.json({ message: "test success" });
   });
 
-  app.get("/api/test-users", async (req, res) => {
-    try {
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
-      if (!serviceRoleKey) {
-        return res.status(501).json({ error: "Service role key missing" });
-      }
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      });
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-      return res.json(data?.users || []);
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message || String(err) });
-    }
-  });
-
   // Authentication Middleware
   const authenticateUser = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (!req.path.startsWith("/api") || req.path === "/api/config") {
@@ -114,12 +74,8 @@ app.get("/api/config", (req, res) => {
 
       (req as any).user = user;
       next();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Auth middleware exception:", err);
-      const fs = require('fs');
-      try {
-        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] AUTH ERROR: ${err.message || String(err)}\n${err.stack || ''}\n\n`);
-      } catch (e) {}
       return res.status(500).json({ error: "Internal server error in auth middleware" });
     }
   };
@@ -177,10 +133,6 @@ app.get("/api/config", (req, res) => {
       res.json(safeUsers);
     } catch (err: any) {
       console.error("Unexpected error in /api/users:", err);
-      const fs = require('fs');
-      try {
-        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] ROUTE ERROR on /api/users: ${err.message || String(err)}\n${err.stack || ''}\n\n`);
-      } catch (e) {}
       res.status(500).json({ error: `Server Error: ${err.message || String(err)}` });
     }
   });
@@ -2008,303 +1960,6 @@ app.get("/api/config", (req, res) => {
     res.json({ success: true });
   });
 
-  // --- Seed App Versions if empty/missing ---
-  let isAppVersionsInSupabase = true;
-
-  const systemVersions = [
-    {
-      version_number: '1.1.1',
-      title: 'Automação do Painel de Versões',
-      description: '- Removidos controles manuais de cadastro, edição e exclusão de versões pelo usuário final para garantir confiabilidade dos registros históricos.\n- Implementado sistema de sincronização automatizada que registra novas versões e melhorias diretamente a partir do código do assistente.\n- Adicionado indicador visual de controle automático no topo do painel das versões.',
-      update_type: 'Melhoria',
-      status: 'Publicada',
-      published_at: '2026-07-04T14:35:00.000Z'
-    },
-    {
-      version_number: '1.1.0',
-      title: 'Módulo de Versões do Aplicativo',
-      description: '- Desenvolvimento do novo painel de Versões do Aplicativo na aba de Administração/Usuários.\n- Criação do componente visual de linha do tempo (Timeline) com busca textual e filtros de tipo de atualização, status e período.\n- Integração com banco de dados Supabase e sistema automático de fallback SQLite local.',
-      update_type: 'Nova funcionalidade',
-      status: 'Publicada',
-      published_at: '2026-07-04T12:00:00.000Z'
-    },
-    {
-      version_number: '1.0.0',
-      title: 'Lançamento Oficial do Sistema',
-      description: '- Publicação oficial da plataforma escolar integrada contendo cinco grandes módulos.\n- Painel Acadêmico (Alunos, Turmas, Disciplinas e Notas).\n- Módulo Financeiro (Mensalidades, Contas a Pagar/Receber e Gráficos de Fluxo).\n- Controle de Escalas de Trabalho com exportação em PDF e Excel.\n- Gestão da Chácara (Estoque, Animais e Tarefas de Manutenção).\n- Controle Pessoal Integrado (Metas, Hábitos e Tarefas Diárias).',
-      update_type: 'Melhoria',
-      status: 'Publicada',
-      published_at: '2026-06-15T08:00:00.000Z'
-    }
-  ];
-
-  async function seedVersionsIfEmpty() {
-    if (isAppVersionsInSupabase) {
-      try {
-        // Clean up 1.5.0 if it got seeded from previous examples
-        await supabase.from('app_versions').delete().eq('version_number', '1.5.0');
-
-        const { data, error } = await supabase.from('app_versions').select('version_number');
-        if (!error && data) {
-          const existingVersions = new Set(data.map(v => v.version_number));
-          for (const sysV of systemVersions) {
-            if (!existingVersions.has(sysV.version_number)) {
-              await supabase.from('app_versions').insert([sysV]);
-            }
-          }
-        } else if (error) {
-          isAppVersionsInSupabase = false;
-        }
-      } catch (err) {
-        isAppVersionsInSupabase = false;
-      }
-    }
-
-    try {
-      // Clean up 1.5.0 from local SQLite database as well
-      localDb.prepare("DELETE FROM app_versions WHERE version_number = '1.5.0'").run();
-
-      const rows = localDb.prepare("SELECT version_number FROM app_versions").all() as { version_number: string }[];
-      const existingVersions = new Set(rows.map(v => v.version_number));
-      
-      const insertStmt = localDb.prepare(`
-        INSERT INTO app_versions (version_number, title, description, update_type, status, published_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const sysV of systemVersions) {
-        if (!existingVersions.has(sysV.version_number)) {
-          insertStmt.run(
-            sysV.version_number,
-            sysV.title,
-            sysV.description,
-            sysV.update_type,
-            sysV.status,
-            sysV.published_at
-          );
-        }
-      }
-    } catch (err) {
-      // Quiet
-    }
-  }
-
-  // App Versions API Endpoints
-  app.get("/api/app-versions", async (req, res) => {
-    try {
-      await seedVersionsIfEmpty();
-      
-      if (isAppVersionsInSupabase) {
-        const { data, error } = await supabase.from('app_versions').select('*').order('created_at', { ascending: false });
-        if (!error && data) {
-          return res.json(data);
-        }
-        if (error) {
-          isAppVersionsInSupabase = false;
-        }
-      }
-    } catch (err) {
-      isAppVersionsInSupabase = false;
-    }
-
-    // SQLite fallback
-    try {
-      const rows = localDb.prepare("SELECT * FROM app_versions ORDER BY created_at DESC").all();
-      res.json(rows);
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to retrieve app versions" });
-    }
-  });
-
-  app.post("/api/app-versions", async (req, res) => {
-    const { title, description, update_type, status, increment_type } = req.body;
-    const user = (req as any).user;
-
-    if (!title || !description || !update_type || !status || !increment_type) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    // 1. Get latest version to calculate next version number
-    let latestVersion = "1.0.0";
-
-    if (isAppVersionsInSupabase) {
-      try {
-        const { data, error } = await supabase.from('app_versions').select('version_number').order('created_at', { ascending: false }).limit(1);
-        if (!error && data && data.length > 0) {
-          latestVersion = data[0].version_number;
-        } else if (error) {
-          isAppVersionsInSupabase = false;
-        }
-      } catch (err) {
-        isAppVersionsInSupabase = false;
-      }
-    }
-
-    if (!isAppVersionsInSupabase) {
-      try {
-        const row = localDb.prepare("SELECT version_number FROM app_versions ORDER BY created_at DESC LIMIT 1").get() as { version_number: string } | undefined;
-        if (row) {
-          latestVersion = row.version_number;
-        }
-      } catch (err) {
-        // Quiet
-      }
-    }
-
-    // 2. Calculate next semantic version
-    let [major, minor, patch] = latestVersion.split('.').map(Number);
-    if (isNaN(major)) major = 1;
-    if (isNaN(minor)) minor = 0;
-    if (isNaN(patch)) patch = 0;
-
-    if (increment_type === 'major') {
-      major += 1;
-      minor = 0;
-      patch = 0;
-    } else if (increment_type === 'minor') {
-      minor += 1;
-      patch = 0;
-    } else if (increment_type === 'patch') {
-      patch += 1;
-    }
-
-    const newVersionNumber = `${major}.${minor}.${patch}`;
-    const publishedAt = status === 'Publicada' ? new Date().toISOString() : null;
-
-    // 3. Insert new version
-    if (isAppVersionsInSupabase) {
-      try {
-        const { data, error } = await supabase.from('app_versions').insert([{
-          version_number: newVersionNumber,
-          title,
-          description,
-          update_type,
-          status,
-          published_at: publishedAt,
-          user_id: user?.id
-        }]).select().single();
-
-        if (!error) {
-          return res.json(data);
-        }
-        isAppVersionsInSupabase = false;
-      } catch (err) {
-        isAppVersionsInSupabase = false;
-      }
-    }
-
-    // SQLite Insert fallback
-    try {
-      const info = localDb.prepare(`
-        INSERT INTO app_versions (version_number, title, description, update_type, status, published_at, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        newVersionNumber,
-        title,
-        description,
-        update_type,
-        status,
-        publishedAt,
-        user?.id || null
-      );
-
-      const inserted = {
-        id: info.lastInsertRowid,
-        version_number: newVersionNumber,
-        title,
-        description,
-        update_type,
-        status,
-        published_at: publishedAt,
-        created_at: new Date().toISOString(),
-        user_id: user?.id || null
-      };
-      res.json(inserted);
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to create new app version: " + err.message });
-    }
-  });
-
-  app.put("/api/app-versions/:id", async (req, res) => {
-    const { id } = req.params;
-    const { title, description, update_type, status } = req.body;
-
-    if (isAppVersionsInSupabase) {
-      try {
-        const { data: existing, error: checkError } = await supabase.from('app_versions').select('status, published_at').eq('id', id).single();
-        if (!checkError && existing) {
-          const finalPublishedAt = status === 'Publicada' ? (existing.published_at || new Date().toISOString()) : null;
-          
-          const { data, error } = await supabase.from('app_versions').update({
-            title,
-            description,
-            update_type,
-            status,
-            published_at: finalPublishedAt
-          }).eq('id', id).select().single();
-
-          if (!error) {
-            return res.json(data);
-          }
-        }
-        isAppVersionsInSupabase = false;
-      } catch (err) {
-        isAppVersionsInSupabase = false;
-      }
-    }
-
-    // SQLite update fallback
-    try {
-      const existing = localDb.prepare("SELECT status, published_at FROM app_versions WHERE id = ?").get(id) as { status: string, published_at: string | null } | undefined;
-      if (existing) {
-        const finalPublishedAt = status === 'Publicada' ? (existing.published_at || new Date().toISOString()) : null;
-        
-        localDb.prepare(`
-          UPDATE app_versions
-          SET title = ?, description = ?, update_type = ?, status = ?, published_at = ?
-          WHERE id = ?
-        `).run(title, description, update_type, status, finalPublishedAt, id);
-
-        const updated = {
-          id: Number(id),
-          title,
-          description,
-          update_type,
-          status,
-          published_at: finalPublishedAt
-        };
-        return res.json(updated);
-      } else {
-        res.status(404).json({ error: "Version not found" });
-      }
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to update version" });
-    }
-  });
-
-  app.delete("/api/app-versions/:id", async (req, res) => {
-    const { id } = req.params;
-
-    if (isAppVersionsInSupabase) {
-      try {
-        const { error } = await supabase.from('app_versions').delete().eq('id', id);
-        if (!error) {
-          return res.json({ success: true });
-        }
-        isAppVersionsInSupabase = false;
-      } catch (err) {
-        isAppVersionsInSupabase = false;
-      }
-    }
-
-    try {
-      localDb.prepare("DELETE FROM app_versions WHERE id = ?").run(id);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to delete version" });
-    }
-  });
-
   app.get("/api/work/escalas", async (req, res) => {
     try {
       const { data, error } = await supabase.from('escalas').select('*');
@@ -2469,10 +2124,6 @@ app.get("/api/config", (req, res) => {
 
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
       console.error("Global Express Error:", err);
-      const fs = require('fs');
-      try {
-        fs.appendFileSync('./server_errors.log', `[${new Date().toISOString()}] GLOBAL ERROR on ${req.method} ${req.url}: ${err.message}\n${err.stack}\n\n`);
-      } catch (e) {}
       res.status(500).json({ error: "Internal Server Error", message: err.message, stack: err.stack });
     });
 
@@ -2481,17 +2132,13 @@ app.get("/api/config", (req, res) => {
         console.log(`Server running on http://localhost:${PORT}`);
         
         // Test Supabase connection and tables
-        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities", "escalas", "email_templates", "clients", "client_sales", "client_installments", "app_versions"];
+        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities", "escalas", "email_templates", "clients", "client_sales", "client_installments"];
         console.log("\n🔍 Verificando tabelas no Supabase...");
         
         for (const table of tables) {
           const { error } = await supabase.from(table).select("id").limit(1);
           if (error) {
-            if (table === 'app_versions') {
-              console.log(`ℹ️ Tabela [${table}] não detectada no Supabase. Utilizando fallback local SQLite perfeitamente funcional.`);
-            } else {
-              console.log(`⚠️ Tabela [${table}] indisponível no Supabase:`, error.message);
-            }
+            console.error(`❌ Erro na tabela [${table}]:`, error.message);
           } else {
             console.log(`✅ Tabela [${table}] detectada com sucesso.`);
           }
