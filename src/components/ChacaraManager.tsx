@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, 
   Zap, 
@@ -1005,6 +1006,38 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       ];
     });
 
+    const rowStatuses = filteredBills.map(bill => {
+      const isPaid = bill.status === 'paid';
+      const isPartial = bill.status === 'partial' || (!isPaid && (bill.amount_paid || 0) > 0);
+      return isPaid ? 'PAGO' : isPartial ? 'PARCIAL' : 'PENDENTE';
+    });
+
+    const pdfTotalToPay = filteredBills.reduce((acc, b) => acc + b.total, 0);
+    const pdfTotalPaid = filteredBills.reduce((acc, b) => {
+      const isPaid = b.status === 'paid';
+      const amt = isPaid ? b.total : (b.amount_paid || 0);
+      return acc + amt;
+    }, 0);
+    const pdfTotalPending = pdfTotalToPay - pdfTotalPaid;
+
+    const summaryCards = [
+      {
+        label: 'TOTAL A PAGAR',
+        value: `R$ ${pdfTotalToPay.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        textColor: '#1e293b'
+      },
+      {
+        label: 'TOTAL PAGO',
+        value: `R$ ${pdfTotalPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        textColor: '#16a34a'
+      },
+      {
+        label: 'TOTAL PENDENTE',
+        value: `R$ ${pdfTotalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        textColor: '#dc2626'
+      }
+    ];
+
     const totalMonth = filteredBills.reduce((acc, curr) => acc + curr.total, 0);
 
     await PdfService.exportTableToPDF(
@@ -1014,7 +1047,11 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       tableData as string[][],
       `Total Geral do Mês: R$ ${totalMonth.toFixed(2)}`,
       orientation as 'p'|'l',
-      `relatorio-energia-${filterMonth}`
+      `relatorio-energia-${filterMonth}`,
+      'save',
+      undefined,
+      rowStatuses,
+      summaryCards
     );
   };
 
@@ -1565,478 +1602,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
             </Card>
           </motion.div>
         )}
-        {pendingDetailsModal.isOpen && pendingDetailsModal.user && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
-            {isGeneratingPdf && (
-              <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
-                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
-                </div>
-              </div>
-            )}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
-            >
-              <div ref={modalContentRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
-                      <Eye className="text-indigo-600" size={24} />
-                      Extrato de Pendências
-                    </h3>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{pendingDetailsModal.user.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'save')}
-                      className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
-                    >
-                      <FileDown size={14} />
-                      PDF
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const user = pendingDetailsModal.user;
-                        const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
-                        const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
-                        exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
-                      }}
-                      className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
-                      title="Compartilhar PDF"
-                    >
-                      <Share2 size={14} />
-                      Compartilhar
-                    </button>
-                    <button 
-                      onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
-                      className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                    >
-                      <XCircle size={24} className="text-gray-400" />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
-                  <div className="space-y-6">
-                    {bills.filter(b => {
-                      if (b.chacara_user_id !== pendingDetailsModal.user?.id || b.status === 'paid') return false;
-                      const [y, m] = b.month_reference.split('-');
-                      if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
-                      if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
-                      return true;
-                    })
-                      .sort((a, b) => a.month_reference.localeCompare(b.month_reference))
-                      .map((bill) => {
-                        const [year, month] = bill.month_reference.split('-');
-                        const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
-                        const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-                        
-                        const energyReadings = bill.energy_readings || [];
-                        const waterReadings = bill.water_readings || [];
-                        const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
-                        const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
-                        const energyTotal = consumption * bill.kwh_value;
-                        const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
-                        const pendingAmount = bill.total - (bill.amount_paid || 0);
-
-                        return (
-                          <div key={bill.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
-                            <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
-                              <div className="flex flex-col flex-shrink-0">
-                                <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
-                                {bill.due_date && (
-                                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-                                    Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 no-export">
-                                <button
-                                  onClick={() => handleToggleStatusClick(bill)}
-                                  className="text-[11px] font-black bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-wider shadow-sm active:scale-95"
-                                >
-                                  <Check size={14} />
-                                  RECEBER
-                                </button>
-                                <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                              <div className="hidden show-on-export">
-                                <span className="text-sm font-black text-rose-600">PENDENTE: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div>
-                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                    <Zap size={12} className="text-amber-500" /> Energia
-                                  </h4>
-                                  {energyReadings.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {energyReadings.map((r, idx) => (
-                                        <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                          <div className="flex justify-between text-gray-500">
-                                            <span>Padrão {idx + 1}:</span>
-                                            <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                          </div>
-                                          <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                            <span>Consumo:</span>
-                                            <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                      <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                        <span>Subtotal Energia:</span>
-                                        <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                      </div>
-                                    </div>
-                                  ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
-                                </div>
-                              </div>
-
-                              <div className="space-y-4">
-                                <div>
-                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                    <Droplets size={12} className="text-blue-500" /> Água
-                                  </h4>
-                                  {waterReadings.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {waterReadings.map((r, idx) => (
-                                        <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                          <div className="flex justify-between text-gray-500">
-                                            <span>Mesa/Hidrômetro {idx + 1}:</span>
-                                            <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                          </div>
-                                          <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                            <span>Consumo:</span>
-                                            <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                      <div className="flex justify-between text-xs text-gray-600 mt-1">
-                                        <span>Taxa Prestador:</span>
-                                        <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                      </div>
-                                      <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                        <span>Subtotal Água:</span>
-                                        <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                      </div>
-                                    </div>
-                                  ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                                <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
-                                <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                              <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                                <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
-                                <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                              <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
-                                <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
-                                <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
-                            </div>
-                            
-                            {bill.amount_paid > 0 && (
-                              <div className="px-5 pb-5 flex justify-end">
-                                <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                                  Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-              <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center report-total-footer">
-                <div className="text-gray-500 text-xs font-bold">
-                  Total Pendente Geral: <span className="text-red-600 font-black text-lg ml-2">R$ {
-                    bills.filter(b => b.chacara_user_id === pendingDetailsModal.user?.id && b.status !== 'paid')
-                      .reduce((acc, b) => acc + (b.total - (b.amount_paid || 0)), 0)
-                      .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                  }</span>
-                </div>
-                
-                {settings.whatsapp_observation && (
-                  <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export w-full">
-                    <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
-                    <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 no-export">
-                  <button 
-                    onClick={() => {
-                      const user = pendingDetailsModal.user;
-                      const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
-                      const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
-                      exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
-                    }}
-                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95 no-export"
-                  >
-                    <Share2 size={16} />
-                    Compartilhar PDF
-                  </button>
-                  <button 
-                    onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
-                    className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95 no-export"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
-            </div>
-            </motion.div>
-          </div>
-        )}
-        {invoiceDetailsModal.isOpen && invoiceDetailsModal.bill && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
-            {isGeneratingPdf && (
-              <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
-                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
-                </div>
-              </div>
-            )}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
-            >
-              <div ref={invoiceModalRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                {(() => {
-                  const bill = invoiceDetailsModal.bill!;
-                  const user = users.find(u => u.id === bill.chacara_user_id);
-                  const [year, month] = bill.month_reference.split('-');
-                  const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
-                  const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-                  
-                  const energyReadings = bill.energy_readings || [];
-                  const waterReadings = bill.water_readings || [];
-                  const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
-                  const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
-                  const energyTotal = consumption * bill.kwh_value;
-                  const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
-
-                  return (
-                    <>
-                      <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between no-export">
-                        <div>
-                          <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
-                            <FileText className="text-indigo-600" size={24} />
-                            Extrato Mensal - {capitalizedMonth} / {year}
-                          </h3>
-                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{user?.name || 'Usuário'}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'save')}
-                            className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
-                            title="Gerar PDF"
-                          >
-                            <FileDown size={14} />
-                            PDF
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
-                              exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
-                            }}
-                            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
-                            title="Compartilhar PDF"
-                          >
-                            <Share2 size={14} />
-                            Compartilhar
-                          </button>
-                          {bill.status !== 'paid' && (
-                            <button
-                              onClick={() => {
-                                setInvoiceDetailsModal({ isOpen: false, bill: null });
-                                handleToggleStatusClick(bill);
-                              }}
-                              className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm"
-                            >
-                              <Check size={14} />
-                              RECEBER
-                            </button>
-                          )}
-                          <button
-                            onClick={() => sendWhatsApp(bill)}
-                            className="flex items-center gap-2 bg-green-500 text-white px-5 py-2 rounded-xl text-xs font-black hover:bg-green-600 transition-all shadow-sm"
-                          >
-                            <WhatsAppIcon size={14} />
-                            WhatsApp
-                          </button>
-                          <button 
-                            onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
-                            className="p-2 hover:bg-gray-200 rounded-full transition-colors ml-2"
-                          >
-                            <XCircle size={24} className="text-gray-400" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
-                          <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
-                            <div className="flex flex-col flex-shrink-0">
-                              <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
-                              {bill.due_date && (
-                                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-                                  Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase no-export">
-                              Resumo da Conta
-                            </span>
-                          </div>
-                          
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <Zap size={12} className="text-amber-500" /> Energia
-                                </h4>
-                                {energyReadings.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {energyReadings.map((r, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                        <div className="flex justify-between text-gray-500">
-                                          <span>Padrão {idx + 1}:</span>
-                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                        </div>
-                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                          <span>Consumo:</span>
-                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                      <span>Subtotal Energia:</span>
-                                      <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                  </div>
-                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                  <Briefcase size={12} className="text-blue-500" /> Água
-                                </h4>
-                                {waterReadings.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {waterReadings.map((r, idx) => (
-                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
-                                        <div className="flex justify-between text-gray-500">
-                                          <span>Mesa/Hidrômetro {idx + 1}:</span>
-                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                                        </div>
-                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
-                                          <span>Consumo:</span>
-                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    <div className="flex justify-between text-xs text-gray-600 mt-1">
-                                      <span>Taxa Prestador:</span>
-                                      <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
-                                      <span>Subtotal Água:</span>
-                                      <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                  </div>
-                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
-                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
-                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
-                              <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total Geral</span>
-                              <span className="text-lg font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                          </div>
-                          
-                          {settings.whatsapp_observation && (
-                            <div className="mx-5 mb-5 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export">
-                              <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
-                              <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-col gap-3 no-export">
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          {bill.status !== 'paid' && (
-                            <button
-                              onClick={() => {
-                                setInvoiceDetailsModal({ isOpen: false, bill: null });
-                                handleToggleStatusClick(bill);
-                              }}
-                              className="flex-1 flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
-                            >
-                              <Check size={20} />
-                              RECEBER
-                            </button>
-                          )}
-                          <button
-                            onClick={() => sendWhatsApp(bill)}
-                            className="flex-1 flex items-center justify-center gap-3 bg-green-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-green-600 transition-all shadow-lg active:scale-95"
-                          >
-                            <WhatsAppIcon size={20} />
-                            WhatsApp
-                          </button>
-                        </div>
-                        <div className="flex gap-3 justify-end items-center mt-2">
-                          <button 
-                            onClick={() => {
-                              const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
-                              exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
-                            }}
-                            className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
-                          >
-                            <Share2 size={16} />
-                            Compartilhar PDF
-                          </button>
-                          <button 
-                            onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
-                            className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95"
-                          >
-                            Fechar
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </motion.div>
-          </div>
-        )}
         {activeTab === 'chacara_messages' && (
           <motion.div
             key="messages"
@@ -3465,6 +3031,484 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
           </motion.div>
         )}
       </AnimatePresence>
+
+      {pendingDetailsModal.isOpen && pendingDetailsModal.user && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
+          {isGeneratingPdf && (
+            <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
+              </div>
+            </div>
+          )}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
+          >
+            <div ref={modalContentRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
+                    <Eye className="text-indigo-600" size={24} />
+                    Extrato de Pendências
+                  </h3>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{pendingDetailsModal.user.name}</p>
+                </div>
+                <div className="flex items-center gap-2 no-export">
+                  <button 
+                    onClick={() => exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'save')}
+                    className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
+                  >
+                    <FileDown size={14} />
+                    PDF
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const user = pendingDetailsModal.user;
+                      const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
+                      const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
+                      exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
+                    }}
+                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
+                    title="Compartilhar PDF"
+                  >
+                    <Share2 size={14} />
+                    Compartilhar
+                  </button>
+                  <button 
+                    onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
+                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <XCircle size={24} className="text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
+                <div className="space-y-6">
+                  {bills.filter(b => {
+                    if (b.chacara_user_id !== pendingDetailsModal.user?.id || b.status === 'paid') return false;
+                    const [y, m] = b.month_reference.split('-');
+                    if (detailsYearFilter !== 'all' && y !== detailsYearFilter) return false;
+                    if (detailsMonthFilter !== 'all' && m !== detailsMonthFilter) return false;
+                    return true;
+                  })
+                    .sort((a, b) => a.month_reference.localeCompare(b.month_reference))
+                    .map((bill) => {
+                      const [year, month] = bill.month_reference.split('-');
+                      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+                      const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                      
+                      const energyReadings = bill.energy_readings || [];
+                      const waterReadings = bill.water_readings || [];
+                      const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                      const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                      const energyTotal = consumption * bill.kwh_value;
+                      const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
+                      const pendingAmount = bill.total - (bill.amount_paid || 0);
+
+                      return (
+                        <div key={bill.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
+                          <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
+                            <div className="flex flex-col flex-shrink-0">
+                              <span className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-0.5">{pendingDetailsModal.user?.name}</span>
+                              <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
+                              {bill.due_date && (
+                                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                                  Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 no-export">
+                              <button
+                                onClick={() => handleToggleStatusClick(bill)}
+                                className="text-[11px] font-black bg-indigo-600 text-white px-6 py-2 rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 uppercase tracking-wider shadow-sm active:scale-95"
+                              >
+                                <Check size={14} />
+                                RECEBER
+                              </button>
+                              <span className="text-xs font-bold px-3 py-1 bg-red-100 text-red-700 rounded-full uppercase">Pendente: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="hidden show-on-export">
+                              <span className="text-sm font-black text-rose-600">PENDENTE: R$ {pendingAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Zap size={12} className="text-amber-500" /> Energia
+                                </h4>
+                                {energyReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {energyReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Padrão {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Energia:</span>
+                                      <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                  <Droplets size={12} className="text-blue-500" /> Água
+                                </h4>
+                                {waterReadings.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {waterReadings.map((r, idx) => (
+                                      <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                        <div className="flex justify-between text-gray-500">
+                                          <span>Mesa/Hidrômetro {idx + 1}:</span>
+                                          <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                          <span>Consumo:</span>
+                                          <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                        <span>Taxa Prestador:</span>
+                                        <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      </div>
+                                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                      <span>Subtotal Água:</span>
+                                      <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                  </div>
+                                ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                              <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
+                              <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
+                              <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total do Mês</span>
+                              <span className="text-sm font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                          
+                          {bill.amount_paid > 0 && (
+                            <div className="px-5 pb-5 flex justify-end">
+                              <div className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                Pago: R$ {(bill.amount_paid || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center report-total-footer">
+                <div className="text-gray-500 text-xs font-bold">
+                  Total Pendente Geral: <span className="text-red-600 font-black text-lg ml-2">R$ {
+                    bills.filter(b => b.chacara_user_id === pendingDetailsModal.user?.id && b.status !== 'paid')
+                      .reduce((acc, b) => acc + (b.total - (b.amount_paid || 0)), 0)
+                      .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  }</span>
+                </div>
+                
+                {settings.whatsapp_observation && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export w-full">
+                    <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
+                    <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 no-export">
+                  <button 
+                    onClick={() => {
+                      const user = pendingDetailsModal.user;
+                      const pendingBills = bills.filter(b => b.chacara_user_id === user?.id && b.status !== 'paid');
+                      const shareText = user ? getPendingSummaryWhatsAppMessage(user, pendingBills, settings) : undefined;
+                      exportPendingDetailsToPDF(modalContentRef, `extrato-${pendingDetailsModal.user?.name.toLowerCase().replace(/\s+/g, '-')}`, 'share', shareText);
+                    }}
+                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95 no-export"
+                  >
+                    <Share2 size={16} />
+                    Compartilhar PDF
+                  </button>
+                  <button 
+                    onClick={() => setPendingDetailsModal({ isOpen: false, user: null })}
+                    className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95 no-export"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {invoiceDetailsModal.isOpen && invoiceDetailsModal.bill && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
+          {isGeneratingPdf && (
+            <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="font-bold text-gray-800 text-sm uppercase tracking-widest">Gerando PDF...</p>
+              </div>
+            </div>
+          )}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white md:rounded-3xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] flex flex-col overflow-hidden overscroll-contain"
+          >
+            <div ref={invoiceModalRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              {(() => {
+                const bill = invoiceDetailsModal.bill!;
+                const user = users.find(u => u.id === bill.chacara_user_id);
+                const [year, month] = bill.month_reference.split('-');
+                const monthName = new Date(Number(year), Number(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+                const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                
+                const energyReadings = bill.energy_readings || [];
+                const waterReadings = bill.water_readings || [];
+                const consumption = energyReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                const waterConsumption = waterReadings.reduce((acc, r) => acc + (r.curr - r.prev), 0);
+                const energyTotal = consumption * bill.kwh_value;
+                const waterTotalDetail = (waterConsumption * (bill.water_value || 0)) + (bill.water_service_fee || 0);
+
+                return (
+                  <>
+                    <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight flex items-center gap-3">
+                          <FileText className="text-indigo-600" size={24} />
+                          Extrato Mensal - {capitalizedMonth} / {year}
+                        </h3>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">{user?.name || 'Usuário'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 no-export">
+                        <button 
+                          onClick={() => exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'save')}
+                          className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-all shadow-sm"
+                          title="Gerar PDF"
+                        >
+                          <FileDown size={14} />
+                          PDF
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
+                            exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
+                          }}
+                          className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
+                          title="Compartilhar PDF"
+                        >
+                          <Share2 size={14} />
+                          Compartilhar
+                        </button>
+                        {bill.status !== 'paid' && (
+                          <button
+                            onClick={() => {
+                              setInvoiceDetailsModal({ isOpen: false, bill: null });
+                              handleToggleStatusClick(bill);
+                            }}
+                            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-sm"
+                          >
+                            <Check size={14} />
+                            RECEBER
+                          </button>
+                        )}
+                        <button
+                          onClick={() => sendWhatsApp(bill)}
+                          className="flex items-center gap-2 bg-green-500 text-white px-5 py-2 rounded-xl text-xs font-black hover:bg-green-600 transition-all shadow-sm"
+                        >
+                          <WhatsAppIcon size={14} />
+                          WhatsApp
+                        </button>
+                        <button 
+                          onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
+                          className="p-2 hover:bg-gray-200 rounded-full transition-colors ml-2"
+                        >
+                          <XCircle size={24} className="text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto flex-1 bg-gray-50/30 report-container">
+                      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden report-card">
+                        <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center report-section-header">
+                          <div className="flex flex-col flex-shrink-0">
+                            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-0.5">{user?.name}</span>
+                            <span className="font-black text-indigo-900 uppercase tracking-tighter whitespace-nowrap min-w-fit">{capitalizedMonth} / {year}</span>
+                            {bill.due_date && (
+                              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                                Vencimento: {new Date(bill.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase no-export">
+                            Resumo da Conta
+                          </span>
+                        </div>
+                        
+                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Zap size={12} className="text-amber-500" /> Energia
+                              </h4>
+                              {energyReadings.length > 0 ? (
+                                <div className="space-y-2">
+                                  {energyReadings.map((r, idx) => (
+                                    <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                      <div className="flex justify-between text-gray-500">
+                                        <span>Padrão {idx + 1}:</span>
+                                        <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                      <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                        <span>Consumo:</span>
+                                        <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} kWh</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                    <span>Subtotal Energia:</span>
+                                    <span>R$ {energyTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  </div>
+                                </div>
+                              ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Briefcase size={12} className="text-blue-500" /> Água
+                              </h4>
+                              {waterReadings.length > 0 ? (
+                                <div className="space-y-2">
+                                  {waterReadings.map((r, idx) => (
+                                    <div key={idx} className="bg-gray-50 p-2 rounded-lg text-xs">
+                                      <div className="flex justify-between text-gray-500">
+                                        <span>Mesa/Hidrômetro {idx + 1}:</span>
+                                        <span className="font-mono">{r.prev.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} → {r.curr.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                                      </div>
+                                      <div className="flex justify-between font-bold text-gray-700 mt-1">
+                                        <span>Consumo:</span>
+                                        <span>{Number(r.curr - r.prev).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m³</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div className="flex justify-between text-xs text-gray-600 mt-1">
+                                    <span>Taxa Prestador:</span>
+                                    <span>R$ {(bill.water_service_fee || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-900">
+                                    <span>Subtotal Água:</span>
+                                    <span>R$ {waterTotalDetail.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  </div>
+                                </div>
+                              ) : <p className="text-xs text-gray-400 italic">Não aplicável</p>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50/50 p-5 pt-0 grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                            <span className="text-[10px] block font-bold text-indigo-400 uppercase">Fundo de Reserva</span>
+                            <span className="text-sm font-bold text-indigo-900">R$ {(bill.reserve_fund || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-100/50">
+                            <span className="text-[10px] block font-bold text-indigo-400 uppercase">Rateio Adv/Cont</span>
+                            <span className="text-sm font-bold text-indigo-900">R$ {(bill.apportionment_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="bg-indigo-900 p-3 rounded-xl shadow-lg">
+                            <span className="text-[10px] block font-bold text-indigo-200 uppercase">Total Geral</span>
+                            <span className="text-lg font-black text-white">R$ {bill.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                        
+                        {settings.whatsapp_observation && (
+                          <div className="mx-5 mb-5 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 italic show-on-export">
+                            <p className="font-bold uppercase tracking-widest mb-1 not-italic text-amber-900">Observações:</p>
+                            <div className="whitespace-pre-wrap">{settings.whatsapp_observation}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-6 py-5 bg-gray-50 border-t border-gray-100 flex flex-col gap-3 no-export">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {bill.status !== 'paid' && (
+                          <button
+                            onClick={() => {
+                              setInvoiceDetailsModal({ isOpen: false, bill: null });
+                              handleToggleStatusClick(bill);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+                          >
+                            <Check size={20} />
+                            RECEBER
+                          </button>
+                        )}
+                        <button
+                          onClick={() => sendWhatsApp(bill)}
+                          className="flex-1 flex items-center justify-center gap-3 bg-green-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-green-600 transition-all shadow-lg active:scale-95"
+                        >
+                          <WhatsAppIcon size={20} />
+                          WhatsApp
+                        </button>
+                      </div>
+                      <div className="flex gap-3 justify-end items-center mt-2">
+                        <button 
+                          onClick={() => {
+                            const shareText = user ? getBillWhatsAppMessage(bill, user, settings) : undefined;
+                            exportPendingDetailsToPDF(invoiceModalRef, `extrato-${user?.name.toLowerCase().replace(/\s+/g, '-') || 'conta'}-${bill.month_reference}`, 'share', shareText);
+                          }}
+                          className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
+                        >
+                          <Share2 size={16} />
+                          Compartilhar PDF
+                        </button>
+                        <button 
+                          onClick={() => setInvoiceDetailsModal({ isOpen: false, bill: null })}
+                          className="bg-gray-200 text-gray-700 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-300 transition-all shadow-md active:scale-95"
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

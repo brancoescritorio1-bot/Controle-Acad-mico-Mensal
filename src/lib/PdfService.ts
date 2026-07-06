@@ -40,7 +40,8 @@ export const PdfService = {
         const canvas = await toPng(element, {
             quality: 1.0,
             pixelRatio: 2,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            skipFonts: true
         });
         
         element.style.cssText = originalStyle;
@@ -189,7 +190,9 @@ export const PdfService = {
     orientation: 'p' | 'l',
     fileName: string,
     action: 'save' | 'share' = 'save',
-    shareText?: string
+    shareText?: string,
+    rowStatuses?: string[],
+    summaryCards?: { label: string; value: string; textColor: string }[]
   ) => {
     // Create a wrapper that is fixed and positioned at 0,0 but placed behind everything
     const wrapper = document.createElement('div');
@@ -212,25 +215,64 @@ export const PdfService = {
     // Build HTML string
     let html = `
       <div style="font-family: 'Inter', sans-serif; color: #111827;">
-        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">${title}</h1>
-        <p style="font-size: 14px; color: #6b7280; margin-bottom: 24px;">${subtitle}</p>
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 24px;">
-          <thead>
-            <tr>
-              ${headers.map(h => `<th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #e5e7eb; color: #4b5563; font-weight: 700;">${h}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map((row, index) => `
-              <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
-                ${row.map(cell => `<td style="padding: 12px 8px; border-bottom: 1px solid #f3f4f6;">${cell}</td>`).join('')}
+        <div style="border-bottom: 2px solid #f3f4f6; padding-bottom: 16px; margin-bottom: 24px;">
+          <h1 style="font-size: 26px; font-weight: 800; margin: 0 0 6px 0; color: #1e1b4b; letter-spacing: -0.02em;">${title}</h1>
+          <p style="font-size: 14px; color: #6b7280; margin: 0;">${subtitle}</p>
+        </div>
+    `;
+
+    // Add summary cards if provided
+    if (summaryCards && summaryCards.length > 0) {
+      html += `
+        <div style="display: grid; grid-template-columns: repeat(${summaryCards.length}, 1fr); gap: 16px; margin-bottom: 28px;">
+          ${summaryCards.map(card => `
+            <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; text-align: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);">
+              <div style="font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">${card.label}</div>
+              <div style="font-size: 24px; font-weight: 900; color: ${card.textColor}; letter-spacing: -0.01em;">${card.value}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    html += `
+        <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02); margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+            <thead>
+              <tr style="background-color: #f8fafc;">
+                ${headers.map(h => `<th style="text-align: left; padding: 14px 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.03em;">${h}</th>`).join('')}
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        ${totalText ? `<div style="font-size: 16px; font-weight: 700; text-align: right; margin-top: 24px;">${totalText}</div>` : ''}
+            </thead>
+            <tbody>
+              ${data.map((row, index) => {
+                const status = rowStatuses?.[index]?.toUpperCase();
+                let rowStyle = `background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; color: #334155;`;
+                let cellBorderColor = '#e2e8f0';
+                
+                if (status === 'PAGO' || status === 'PAID') {
+                  rowStyle = `background-color: #f0fdf4; color: #16a34a; text-decoration: line-through; font-weight: 500;`;
+                  cellBorderColor = '#bbf7d0';
+                } else if (status === 'PENDENTE' || status === 'PENDING') {
+                  rowStyle = `background-color: #fef2f2; color: #dc2626; font-weight: 500;`;
+                  cellBorderColor = '#fecaca';
+                } else if (status === 'PARCIAL' || status === 'PARTIAL') {
+                  rowStyle = `background-color: #eff6ff; color: #2563eb; font-weight: 500;`;
+                  cellBorderColor = '#bfdbfe';
+                }
+
+                return `
+                  <tr style="${rowStyle}">
+                    ${row.map(cell => `<td style="padding: 12px 10px; border-bottom: 1px solid ${cellBorderColor};">${cell}</td>`).join('')}
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        ${totalText ? `<div style="font-size: 18px; font-weight: 800; text-align: right; margin-top: 24px; color: #1e1b4b;">${totalText}</div>` : ''}
       </div>
     `;
+
     tableContainer.innerHTML = html;
     wrapper.appendChild(tableContainer);
     document.body.appendChild(wrapper);

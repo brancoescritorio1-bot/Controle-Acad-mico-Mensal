@@ -1271,7 +1271,7 @@ Escalas GMNL ${year}`;
     const chartContainer = document.getElementById('expenses-pie-chart-container');
     if (chartContainer) {
       try {
-        const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff' });
+        const imgData = await toPng(chartContainer, { pixelRatio: 2, backgroundColor: '#ffffff', skipFonts: true });
         html += `<img src="${imgData}" style="width: 100%; max-width: 600px; height: auto; margin-bottom: 32px;" />`;
       } catch (error) {
         console.error('Error capturing chart:', error);
