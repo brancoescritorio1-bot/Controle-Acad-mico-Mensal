@@ -5123,7 +5123,6 @@ Escalas GMNL ${year}`;
               <TabButton active={activeTab === 'chacara_pending'} onClick={() => setActiveTab('chacara_pending')} icon={AlertCircle} label="Pendências" />
               <TabButton active={activeTab === 'chacara_expenses'} onClick={() => setActiveTab('chacara_expenses')} icon={Banknote} label="Despesas" />
               <TabButton active={activeTab === 'chacara_main'} onClick={() => setActiveTab('chacara_main')} icon={PlusCircle} label="Lançar Conta" />
-              <TabButton active={activeTab === 'chacara_offline'} onClick={() => setActiveTab('chacara_offline')} icon={Zap} label="Offline" />
               <TabButton active={activeTab === 'chacara_history'} onClick={() => setActiveTab('chacara_history')} icon={History} label="Histórico" />
               <TabButton active={activeTab === 'chacara_messages'} onClick={() => setActiveTab('chacara_messages')} icon={WhatsAppIcon} label="Mensagens" />
               <TabButton active={activeTab === 'chacara_users'} onClick={() => setActiveTab('chacara_users')} icon={Users} label="Usuários" />

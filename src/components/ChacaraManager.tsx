@@ -20,7 +20,6 @@ import {
   Search,
   History,
   PlusCircle,
-  Upload,
   Shield,
   Briefcase,
   Layers,
@@ -44,7 +43,6 @@ import { cn } from '../lib/utils';
 import { PdfService } from '../lib/PdfService';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
-import { ChacaraOfflineLogger } from './ChacaraOfflineLogger';
 
 interface ChacaraManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -276,30 +274,6 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [searchBill, setSearchBill] = useState('');
-
-  useEffect(() => {
-    const preFill = localStorage.getItem('chacaraPreFill');
-    if (preFill && activeTab === 'chacara_main') {
-        try {
-          const log = JSON.parse(preFill);
-          const user = users.find(u => u.id === Number(log.userId));
-          if (user) {
-            const preFilled = {
-              energy: log.energyReadings?.map((r: any) => ({ curr: Number(r) })) || [],
-              water: log.waterReadings?.map((r: any) => ({ curr: Number(r) })) || []
-            };
-            handleUserSelectForBill(String(log.userId), preFilled);
-            if (log.date) {
-              setBillForm(prev => ({ ...prev, reading_date: log.date }));
-            }
-          }
-        } catch (e) {
-          console.error('Error parsing preFill:', e);
-        }
-        localStorage.removeItem('chacaraPreFill');
-    }
-  }, [users, settings, activeTab]);
-
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
   const [pendingDetailsModal, setPendingDetailsModal] = useState<{isOpen: boolean, user: ChacaraUser | null}>({isOpen: false, user: null});
@@ -533,7 +507,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     }
   };
 
-  const handleUserSelectForBill = (userId: string, initialReadings?: { energy?: any[], water?: any[] }) => {
+  const handleUserSelectForBill = (userId: string) => {
     const user = users.find(u => u.id === Number(userId));
     if (user) {
       const now = new Date();
@@ -553,9 +527,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         } else if (i === 1) {
           prev = user.last_reading_2 || 0;
         }
-        
-        const curr = initialReadings?.energy?.[i]?.curr || 0;
-        energyReadings.push({ prev, curr });
+        energyReadings.push({ prev, curr: 0 });
       }
 
       // Initialize water readings
@@ -570,9 +542,7 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         } else if (i === 1) {
           prev = user.last_water_reading_2 || 0;
         }
-
-        const curr = initialReadings?.water?.[i]?.curr || 0;
-        waterReadings.push({ prev, curr });
+        waterReadings.push({ prev, curr: 0 });
       }
 
       setBillForm({
@@ -580,13 +550,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         user_id: userId,
         prev_reading: user.last_reading || 0,
         prev_reading_2: user.last_reading_2 || 0,
-        curr_reading: initialReadings?.energy?.[0]?.curr || 0,
-        curr_reading_2: initialReadings?.energy?.[1]?.curr || 0,
+        curr_reading: 0,
+        curr_reading_2: 0,
         kwh_value: settings.default_kwh,
         water_prev_reading: user.last_water_reading || 0,
         water_prev_reading_2: user.last_water_reading_2 || 0,
-        water_curr_reading: initialReadings?.water?.[0]?.curr || 0,
-        water_curr_reading_2: initialReadings?.water?.[1]?.curr || 0,
+        water_curr_reading: 0,
+        water_curr_reading_2: 0,
         water_value: settings.default_water_value,
         water_service_fee: settings.default_water_service_fee || 0,
         apportionment_value: settings.default_apportionment_value,
@@ -2476,18 +2446,6 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
               )}
             </div>
 
-          </motion.div>
-        )}
-
-        {activeTab === 'chacara_offline' && (
-          <motion.div
-            key="offline"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
-            className="space-y-6"
-          >
-            <ChacaraOfflineLogger setActiveTab={setActiveTab} fetchWithAuth={fetchWithAuth} />
           </motion.div>
         )}
 

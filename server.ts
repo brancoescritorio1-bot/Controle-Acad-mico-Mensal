@@ -1484,23 +1484,9 @@ app.get("/api/config", (req, res) => {
   // --- Chácara Module Routes ---
   app.get("/api/chacara/users", async (req, res) => {
     const user = (req as any).user;
-    
-    const { data: users, error: uError } = await supabase.from("chacara_users").select("*").eq("user_id", user.id).order('name');
-    if (uError) return res.status(500).json(uError);
-    
-    const { data: bills, error: bError } = await supabase.from("chacara_bills")
-        .select("*")
-        .eq("user_id", user.id)
-        .order('reading_date', { ascending: false });
-    
-    if (bError) return res.status(500).json(bError);
-    
-    const usersWithLastBill = (users || []).map(u => {
-        const lastBill = (bills || []).find(b => b.chacara_user_id === u.id);
-        return { ...u, last_bill: lastBill };
-    });
-    
-    res.json(usersWithLastBill);
+    const { data, error } = await supabase.from("chacara_users").select("*").eq("user_id", user.id).order('name');
+    if (error) return res.status(500).json(error);
+    res.json(data || []);
   });
 
   app.post("/api/chacara/users", async (req, res) => {
@@ -2382,6 +2368,7 @@ app.get("/api/config", (req, res) => {
       res.status(500).json({ error: err.message });
     }
   });
+
 
   async function setupVite() {
     // Vite middleware for development

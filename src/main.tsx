@@ -4,12 +4,6 @@ import App from './App.tsx';
 import './index.css';
 import { DialogProvider } from './components/DialogContext';
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js');
-  });
-}
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <DialogProvider>
