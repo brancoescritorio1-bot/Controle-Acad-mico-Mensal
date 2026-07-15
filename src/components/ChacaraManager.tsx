@@ -278,17 +278,19 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   useEffect(() => {
     const preFill = localStorage.getItem('chacaraPreFill');
-    if (preFill && users.length > 0) {
+    if (preFill) {
         const log = JSON.parse(preFill);
-        const overrides = {
+        setBillForm(prev => ({
+            ...prev,
+            user_id: String(log.userId),
             reading_date: log.date,
-            energy_readings: log.energyReadings.map((r: string) => ({ curr: Number(r) })),
-            water_readings: log.waterReadings.map((r: string) => ({ curr: Number(r) }))
-        };
-        handleUserSelectForBill(String(log.userId), overrides);
+            energy_readings: log.energyReadings.map((r: string) => ({ prev: 0, curr: Number(r) })),
+            water_readings: log.waterReadings.map((r: string) => ({ prev: 0, curr: Number(r) }))
+        }));
+        handleUserSelectForBill(String(log.userId));
         localStorage.removeItem('chacaraPreFill');
     }
-  }, [users]);
+  }, []);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
   const [pendingDetailsModal, setPendingDetailsModal] = useState<{isOpen: boolean, user: ChacaraUser | null}>({isOpen: false, user: null});
@@ -522,27 +524,34 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
     }
   };
 
-  const handleUserSelectForBill = (userId: string, overrides?: any) => {
+  const handleUserSelectForBill = (userId: string) => {
     const user = users.find(u => u.id === Number(userId));
+    console.log("Selected user:", user);
+    if (user && user.last_bill) {
+        console.log("Last bill found:", user.last_bill);
+    } else if (user) {
+        console.log("Last bill NOT found for user:", user);
+    }
     
     if (user) {
       const now = new Date();
       const readingDate = new Date(now.getFullYear(), now.getMonth() - 1, settings.default_reading_day);
       const dueDate = new Date(now.getFullYear(), now.getMonth(), settings.default_due_day);
+      const currentMonthRef = billForm.month_reference;
 
       // Initialize energy readings
       const energyReadings = [];
       const energyCount = user.energy_meters_count || 1;
-      const lastBillEnergy = user.last_bill?.energy_readings || [];
-      
       for (let i = 0; i < energyCount; i++) {
         let prev = 0;
-        if (lastBillEnergy[i]) {
-            prev = lastBillEnergy[i].curr;
-        } else if (user.last_bill) {
-            // Fallback to legacy fields for first two meters
-            if (i === 0) prev = user.last_bill.curr_reading || 0;
-            else if (i === 1) prev = user.last_bill.curr_reading_2 || 0;
+        if (user.last_bill) {
+            // Try to find the reading for this meter index using array if possible
+            if (user.last_bill.energy_readings && user.last_bill.energy_readings[i]) {
+                prev = user.last_bill.energy_readings[i].curr;
+            } else {
+                // Fallback to legacy fields
+                prev = i === 0 ? (user.last_bill.curr_reading || 0) : (user.last_bill.curr_reading_2 || 0);
+            }
         } else if (user.energy_readings && user.energy_readings[i]) {
           prev = user.energy_readings[i].curr;
         } else if (i === 0) {
@@ -551,25 +560,24 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
           prev = user.last_reading_2 || 0;
         }
         
-        // Use override if provided
-        const overrideCurr = overrides?.energy_readings?.[i]?.curr;
-        const curr = overrideCurr !== undefined ? overrideCurr : 0;
-        energyReadings.push({ prev, curr });
+        // Preserve pre-filled curr if it exists
+        const existingCurr = billForm.energy_readings[i]?.curr || 0;
+        energyReadings.push({ prev, curr: existingCurr });
       }
 
       // Initialize water readings
       const waterReadings = [];
       const waterCount = user.water_meters_count || 1;
-      const lastBillWater = user.last_bill?.water_readings || [];
-      
       for (let i = 0; i < waterCount; i++) {
         let prev = 0;
-        if (lastBillWater[i]) {
-            prev = lastBillWater[i].curr;
-        } else if (user.last_bill) {
-            // Fallback to legacy fields for first two meters
-            if (i === 0) prev = user.last_bill.water_curr_reading || 0;
-            else if (i === 1) prev = user.last_bill.water_curr_reading_2 || 0;
+        if (user.last_bill) {
+            // Try to find the reading for this meter index using array if possible
+            if (user.last_bill.water_readings && user.last_bill.water_readings[i]) {
+                prev = user.last_bill.water_readings[i].curr;
+            } else {
+                // Fallback to legacy fields
+                prev = i === 0 ? (user.last_bill.water_curr_reading || 0) : (user.last_bill.water_curr_reading_2 || 0);
+            }
         } else if (user.water_readings && user.water_readings[i]) {
           prev = user.water_readings[i].curr;
         } else if (i === 0) {
@@ -578,13 +586,13 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
           prev = user.last_water_reading_2 || 0;
         }
         
-        const overrideCurr = overrides?.water_readings?.[i]?.curr;
-        const curr = overrideCurr !== undefined ? overrideCurr : 0;
-        waterReadings.push({ prev, curr });
+        // Preserve pre-filled curr if it exists
+        const existingCurr = billForm.water_readings[i]?.curr || 0;
+        waterReadings.push({ prev, curr: existingCurr });
       }
 
-      setBillForm(prev => ({
-        ...prev,
+      setBillForm({
+        ...billForm,
         user_id: userId,
         prev_reading: energyReadings[0]?.prev || 0,
         prev_reading_2: energyReadings[1]?.prev || 0,
@@ -599,11 +607,12 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         water_service_fee: settings.default_water_service_fee || 0,
         apportionment_value: settings.default_apportionment_value,
         include_apportionment: true,
-        reading_date: overrides?.reading_date || readingDate.toISOString().split('T')[0],
+        reading_date: readingDate.toISOString().split('T')[0],
         due_date: dueDate.toISOString().split('T')[0],
+        month_reference: currentMonthRef,
         energy_readings: energyReadings,
         water_readings: waterReadings
-      }));
+      });
     } else {
       dialogAlert('Usuário não encontrado.');
     }

@@ -61,7 +61,6 @@ interface MarketingPayment {
   marketing_clients?: {
     name: string;
     company: string;
-    phone?: string;
   };
 }
 
