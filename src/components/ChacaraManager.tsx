@@ -526,13 +526,6 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
 
   const handleUserSelectForBill = (userId: string) => {
     const user = users.find(u => u.id === Number(userId));
-    console.log("Selected user:", user);
-    if (user && user.last_bill) {
-        console.log("Last bill found:", user.last_bill);
-    } else if (user) {
-        console.log("Last bill NOT found for user:", user);
-    }
-    
     if (user) {
       const now = new Date();
       const readingDate = new Date(now.getFullYear(), now.getMonth() - 1, settings.default_reading_day);
@@ -544,25 +537,14 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       const energyCount = user.energy_meters_count || 1;
       for (let i = 0; i < energyCount; i++) {
         let prev = 0;
-        if (user.last_bill) {
-            // Try to find the reading for this meter index using array if possible
-            if (user.last_bill.energy_readings && user.last_bill.energy_readings[i]) {
-                prev = user.last_bill.energy_readings[i].curr;
-            } else {
-                // Fallback to legacy fields
-                prev = i === 0 ? (user.last_bill.curr_reading || 0) : (user.last_bill.curr_reading_2 || 0);
-            }
-        } else if (user.energy_readings && user.energy_readings[i]) {
+        if (user.energy_readings && user.energy_readings[i]) {
           prev = user.energy_readings[i].curr;
         } else if (i === 0) {
           prev = user.last_reading || 0;
         } else if (i === 1) {
           prev = user.last_reading_2 || 0;
         }
-        
-        // Preserve pre-filled curr if it exists
-        const existingCurr = billForm.energy_readings[i]?.curr || 0;
-        energyReadings.push({ prev, curr: existingCurr });
+        energyReadings.push({ prev, curr: 0 });
       }
 
       // Initialize water readings
@@ -570,39 +552,28 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
       const waterCount = user.water_meters_count || 1;
       for (let i = 0; i < waterCount; i++) {
         let prev = 0;
-        if (user.last_bill) {
-            // Try to find the reading for this meter index using array if possible
-            if (user.last_bill.water_readings && user.last_bill.water_readings[i]) {
-                prev = user.last_bill.water_readings[i].curr;
-            } else {
-                // Fallback to legacy fields
-                prev = i === 0 ? (user.last_bill.water_curr_reading || 0) : (user.last_bill.water_curr_reading_2 || 0);
-            }
-        } else if (user.water_readings && user.water_readings[i]) {
+        if (user.water_readings && user.water_readings[i]) {
           prev = user.water_readings[i].curr;
         } else if (i === 0) {
           prev = user.last_water_reading || 0;
         } else if (i === 1) {
           prev = user.last_water_reading_2 || 0;
         }
-        
-        // Preserve pre-filled curr if it exists
-        const existingCurr = billForm.water_readings[i]?.curr || 0;
-        waterReadings.push({ prev, curr: existingCurr });
+        waterReadings.push({ prev, curr: 0 });
       }
 
       setBillForm({
         ...billForm,
         user_id: userId,
-        prev_reading: energyReadings[0]?.prev || 0,
-        prev_reading_2: energyReadings[1]?.prev || 0,
-        curr_reading: energyReadings[0]?.curr || 0,
-        curr_reading_2: energyReadings[1]?.curr || 0,
+        prev_reading: user.last_reading || 0,
+        prev_reading_2: user.last_reading_2 || 0,
+        curr_reading: 0,
+        curr_reading_2: 0,
         kwh_value: settings.default_kwh,
-        water_prev_reading: waterReadings[0]?.prev || 0,
-        water_prev_reading_2: waterReadings[1]?.prev || 0,
-        water_curr_reading: waterReadings[0]?.curr || 0,
-        water_curr_reading_2: waterReadings[1]?.curr || 0,
+        water_prev_reading: user.last_water_reading || 0,
+        water_prev_reading_2: user.last_water_reading_2 || 0,
+        water_curr_reading: 0,
+        water_curr_reading_2: 0,
         water_value: settings.default_water_value,
         water_service_fee: settings.default_water_service_fee || 0,
         apportionment_value: settings.default_apportionment_value,
