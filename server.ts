@@ -1,6 +1,7 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 
@@ -35,6 +36,8 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // API Routes
 app.get("/api/config", (req, res) => {
@@ -579,7 +582,7 @@ app.get("/api/config", (req, res) => {
     // Ideally, we would use a migration tool or raw SQL execution if available.
     // Since we are limited, we will just check and return status.
     
-    const tables = ["financial_categories", "financial_accounts", "financial_transactions", "financial_responsibles", "clients", "client_sales", "client_installments", "chacara_users", "chacara_bills", "chacara_settings"];
+    const tables = ["financial_categories", "financial_accounts", "financial_transactions", "financial_responsibles", "clients", "client_sales", "client_installments", "chacara_users", "chacara_bills", "chacara_settings", "marketing_clients", "marketing_payments", "marketing_posts"];
     const status: Record<string, boolean> = {};
 
     for (const table of tables) {
@@ -1212,6 +1215,269 @@ app.get("/api/config", (req, res) => {
       .eq("user_id", user.id);
     if (error) return res.status(500).json(error);
     res.json({ success: true });
+  });
+
+  // --- Marketing Module Routes ---
+
+  // Marketing Clients
+  app.get("/api/marketing/clients", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { data, error } = await supabase.from("marketing_clients")
+        .select("*")
+        .eq("user_id", user.id)
+        .order('name');
+      
+      if (error) {
+        console.error("marketing_clients select error:", error);
+        return res.json([]);
+      }
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/marketing/clients", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { name, company, phone, plan_name, plan_value, status } = req.body;
+      const { data, error } = await supabase.from("marketing_clients").insert([{
+        user_id: user.id,
+        name,
+        company,
+        phone,
+        plan_name,
+        plan_value: plan_value || 0,
+        status: status || 'ativo'
+      }]).select().single();
+      
+      if (error) return res.status(500).json(error);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/marketing/clients/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { name, company, phone, plan_name, plan_value, status } = req.body;
+      const { error } = await supabase.from("marketing_clients")
+        .update({ name, company, phone, plan_name, plan_value, status })
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/marketing/clients/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { error } = await supabase.from("marketing_clients")
+        .delete()
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Marketing Payments
+  app.get("/api/marketing/payments", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { data, error } = await supabase.from("marketing_payments")
+        .select(`
+          *,
+          marketing_clients (name, company)
+        `)
+        .eq("user_id", user.id)
+        .order('due_date', { ascending: true });
+      
+      if (error) {
+        console.error("marketing_payments select error:", error);
+        return res.json([]);
+      }
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/marketing/payments", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { client_id, month_reference, amount, due_date, payment_date, status } = req.body;
+      const { data, error } = await supabase.from("marketing_payments").insert([{
+        user_id: user.id,
+        client_id,
+        month_reference,
+        amount,
+        due_date,
+        payment_date,
+        status: status || 'pendente'
+      }]).select().single();
+      
+      if (error) return res.status(500).json(error);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/marketing/payments/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { client_id, month_reference, amount, due_date, payment_date, status } = req.body;
+      const { error } = await supabase.from("marketing_payments")
+        .update({ client_id, month_reference, amount, due_date, payment_date, status })
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/marketing/payments/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { error } = await supabase.from("marketing_payments")
+        .delete()
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Marketing Posts
+  app.get("/api/marketing/posts", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { data, error } = await supabase.from("marketing_posts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order('scheduled_date', { ascending: true });
+      
+      if (error) {
+        console.error("marketing_posts select error:", error);
+        return res.json([]);
+      }
+      res.json(data || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/marketing/posts", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { title, scheduled_date, scheduled_time, social_network, status, caption, attachment_url, client_id } = req.body;
+      const { data, error } = await supabase.from("marketing_posts").insert([{
+        user_id: user.id,
+        title,
+        scheduled_date,
+        scheduled_time,
+        social_network,
+        status: status || 'rascunho',
+        caption,
+        attachment_url,
+        client_id: client_id || null
+      }]).select().single();
+      
+      if (error) return res.status(500).json(error);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/marketing/posts/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { title, scheduled_date, scheduled_time, social_network, status, caption, attachment_url, client_id } = req.body;
+      const { error } = await supabase.from("marketing_posts")
+        .update({ title, scheduled_date, scheduled_time, social_network, status, caption, attachment_url, client_id: client_id || null })
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/marketing/posts/:id", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { error } = await supabase.from("marketing_posts")
+        .delete()
+        .eq("id", req.params.id)
+        .eq("user_id", user.id);
+      
+      if (error) return res.status(500).json(error);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Marketing File Upload (supports up to 50MB via Base64 JSON)
+  app.post("/api/marketing/upload", async (req, res) => {
+    try {
+      const { fileName, fileType, fileData } = req.body;
+      if (!fileName || !fileData) {
+        return res.status(400).json({ error: "Nome ou dados do arquivo ausentes." });
+      }
+
+      // Ensure uploads directory exists
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Base64 decode
+      const base64Data = fileData.replace(/^data:.*;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      // Check size limit (50MB)
+      const maxBytes = 50 * 1024 * 1024;
+      if (buffer.length > maxBytes) {
+        return res.status(400).json({ error: "O arquivo excede o limite permitido de 50MB." });
+      }
+
+      // Generate unique name
+      const fileExt = path.extname(fileName) || "";
+      const baseName = path.basename(fileName, fileExt).replace(/[^a-zA-Z0-9]/g, "_");
+      const uniqueFileName = `${Date.now()}_${baseName}${fileExt}`;
+      const filePath = path.join(uploadsDir, uniqueFileName);
+
+      fs.writeFileSync(filePath, buffer);
+
+      res.json({ 
+        success: true, 
+        url: `/uploads/${uniqueFileName}`,
+        fileName: uniqueFileName
+      });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- Chácara Module Routes ---
@@ -2132,7 +2398,7 @@ app.get("/api/config", (req, res) => {
         console.log(`Server running on http://localhost:${PORT}`);
         
         // Test Supabase connection and tables
-        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities", "escalas", "email_templates", "clients", "client_sales", "client_installments"];
+        const tables = ["periods", "subjects", "presencas", "notas_atividades", "conteudos_web", "safety_reports", "safety_non_conformities", "escalas", "email_templates", "clients", "client_sales", "client_installments", "marketing_clients", "marketing_payments", "marketing_posts"];
         console.log("\n🔍 Verificando tabelas no Supabase...");
         
         for (const table of tables) {

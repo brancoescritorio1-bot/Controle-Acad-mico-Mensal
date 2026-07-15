@@ -49,7 +49,8 @@ import {
   LayoutGrid,
   AlertCircle,
   X,
-  BrainCircuit
+  BrainCircuit,
+  Megaphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -185,6 +186,7 @@ const FixedBillsManager = lazy(() => import('./components/FixedBillsManager').th
 const ChacaraManager = lazy(() => import('./components/ChacaraManager').then(mod => ({ default: mod.ChacaraManager })));
 const ChacaraFinanceDashboard = lazy(() => import('./components/ChacaraFinanceDashboard').then(mod => ({ default: mod.ChacaraFinanceDashboard })));
 const SafetyReportGenerator = lazy(() => import('./components/SafetyReportGenerator').then(mod => ({ default: mod.SafetyReportGenerator })));
+const MarketingManager = lazy(() => import('./components/MarketingManager').then(mod => ({ default: mod.MarketingManager })));
 import { useDialog } from './components/DialogContext';
 
 export const getGreeting = () => {
@@ -5034,6 +5036,12 @@ Escalas GMNL ${year}`;
                   <SafetyReportGenerator fetchWithAuth={fetchWithAuth} />
                 </Suspense>
               )}
+
+              {activeTab === 'work_marketing' && (
+                <Suspense fallback={<div className="flex justify-center p-12"><div className="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div></div>}>
+                  <MarketingManager fetchWithAuth={fetchWithAuth} />
+                </Suspense>
+              )}
             </motion.div>
           )}
 
@@ -5128,6 +5136,7 @@ Escalas GMNL ${year}`;
           ) : (
             <>
               <TabButton active={activeTab === 'work_clients'} onClick={() => setActiveTab('work_clients')} icon={Users} label="Clientes" />
+              <TabButton active={activeTab === 'work_marketing'} onClick={() => setActiveTab('work_marketing')} icon={Megaphone} label="Marketing" />
               <TabButton active={activeTab === 'work_escalas'} onClick={() => setActiveTab('work_escalas')} icon={Calendar} label="Escalas" />
               <TabButton active={activeTab === 'work_messages'} onClick={() => setActiveTab('work_messages')} icon={WhatsAppIcon} label="Mensagens" />
               <TabButton active={activeTab === 'work_safety'} onClick={() => setActiveTab('work_safety')} icon={AlertTriangle} label="Segurança" />
