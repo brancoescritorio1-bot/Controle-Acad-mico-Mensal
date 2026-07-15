@@ -3,15 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-import { fileURLToPath } from 'url';
 
-let currentDir = "";
-try {
-  const __filename = fileURLToPath(import.meta.url);
-  currentDir = path.dirname(__filename);
-} catch (e) {
-  currentDir = __dirname || process.cwd();
-}
+let currentDir = process.cwd();
+// Removing import.meta.url to prevent Vercel ncc build errors
 
 dotenv.config();
 
@@ -1446,6 +1440,14 @@ app.get("/api/config", (req, res) => {
         return res.status(400).json({ error: "Nome ou dados do arquivo ausentes." });
       }
 
+      if (process.env.VERCEL) {
+        return res.json({
+          success: true,
+          url: fileData,
+          fileName: fileName
+        });
+      }
+
       // Ensure uploads directory exists
       const uploadsDir = path.join(process.cwd(), "uploads");
       if (!fs.existsSync(uploadsDir)) {
@@ -2372,8 +2374,9 @@ app.get("/api/config", (req, res) => {
 
   async function setupVite() {
     // Vite middleware for development
-    if (process.env.NODE_ENV !== "production") {
-      const { createServer: createViteServer } = await import("vite");
+    if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+      const viteModule = "vite";
+      const { createServer: createViteServer } = await import(viteModule);
       const vite = await createViteServer({
         server: { 
           middlewareMode: true,
@@ -2382,7 +2385,7 @@ app.get("/api/config", (req, res) => {
         appType: "spa",
       });
       app.use(vite.middlewares);
-    } else {
+    } else if (!process.env.VERCEL) {
       app.use(express.static(path.join(currentDir, "dist")));
       app.get("*", (req, res) => {
         res.sendFile(path.join(currentDir, "dist", "index.html"));
