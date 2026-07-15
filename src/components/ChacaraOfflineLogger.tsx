@@ -42,7 +42,6 @@ export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => voi
   const exportToMain = (log: any) => {
     localStorage.setItem('chacaraPreFill', JSON.stringify(log));
     setActiveTab('chacara_main');
-    alert(`Dados preparados para o usuário ${users.find(u => u.id === log.userId)?.name || log.userId}. Redirecionando...`);
   };
 
   const deleteLog = (id: number) => {
@@ -97,8 +96,15 @@ export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => voi
                 <p className="text-gray-500">💧{log.waterReadings.join(',')} | ⚡{log.energyReadings.join(',')}</p>
               </div>
               <div className='flex gap-2'>
-                <button onClick={() => exportToMain(log)} className="text-indigo-600 hover:text-indigo-800"><Upload size={16} /></button>
-                <button onClick={() => deleteLog(log.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                <button 
+                  onClick={() => exportToMain(log)} 
+                  className="text-indigo-600 hover:bg-indigo-100 flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all" 
+                  title="Lançar Conta no Sistema"
+                >
+                  <Upload size={14} className="stroke-[3px]" /> 
+                  <span className="font-bold">Lançar Conta</span>
+                </button>
+                <button onClick={() => deleteLog(log.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
               </div>
             </div>
           ))}
