@@ -63,9 +63,49 @@ export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => voi
               <option value="">Selecione...</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
-          {selectedUser && selectedUser.last_bill && (
-            <div className="mt-2 text-xs text-gray-600 bg-indigo-50 p-2 rounded">
-              Última: H:{selectedUser.last_bill.water_curr_reading} | E:{selectedUser.last_bill.curr_reading}
+          {selectedUser && (selectedUser.last_bill || selectedUser.last_reading || selectedUser.last_water_reading) && (
+            <div className="mt-2 text-xs text-gray-600 bg-indigo-50 p-2 rounded space-y-1">
+              <p className="font-bold text-indigo-700 mb-1 border-b border-indigo-100 pb-1">Últimas Leituras:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="font-semibold text-indigo-600">Energia:</p>
+                  {selectedUser.last_bill?.energy_readings && selectedUser.last_bill.energy_readings.length > 0 ? (
+                    selectedUser.last_bill.energy_readings.map((r: any, i: number) => (
+                      <div key={i} className="flex justify-between">
+                        <span>M{i+1}:</span> <span>{r.curr}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex justify-between">
+                      <span>M1:</span> <span>{selectedUser.last_bill?.curr_reading || selectedUser.last_reading || 0}</span>
+                    </div>
+                  )}
+                  {selectedUser.last_bill?.curr_reading_2 > 0 && (
+                     <div className="flex justify-between">
+                        <span>M2:</span> <span>{selectedUser.last_bill.curr_reading_2}</span>
+                     </div>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-indigo-600">Água:</p>
+                  {selectedUser.last_bill?.water_readings && selectedUser.last_bill.water_readings.length > 0 ? (
+                    selectedUser.last_bill.water_readings.map((r: any, i: number) => (
+                      <div key={i} className="flex justify-between">
+                        <span>H{i+1}:</span> <span>{r.curr}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex justify-between">
+                      <span>H1:</span> <span>{selectedUser.last_bill?.water_curr_reading || selectedUser.last_water_reading || 0}</span>
+                    </div>
+                  )}
+                  {selectedUser.last_bill?.water_curr_reading_2 > 0 && (
+                     <div className="flex justify-between">
+                        <span>H2:</span> <span>{selectedUser.last_bill.water_curr_reading_2}</span>
+                     </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

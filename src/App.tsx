@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import MainApp from './MainApp';
-import { Download } from 'lucide-react';
+import { Download, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,18 +25,24 @@ export default function App() {
     };
   }, []);
 
+  const [configError, setConfigError] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchConfig() {
       try {
         const res = await fetch('/api/config');
-        if (!res.ok) throw new Error('Failed to fetch config');
+        if (!res.ok) throw new Error('Failed to fetch configuration from server');
         
         const config = await res.json();
+        if (!config.supabaseUrl || !config.supabaseKey) {
+          throw new Error('Supabase configuration is missing on server');
+        }
         setSupabaseConfig(config);
         setSupabaseClient(createClient(config.supabaseUrl, config.supabaseKey));
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch config:', error);
-        setAuthLoading(false); // Stop loading if config fails
+        setConfigError(error.message || 'Erro ao carregar configuração');
+        setAuthLoading(false);
       }
     }
     fetchConfig();
@@ -140,6 +146,29 @@ export default function App() {
       if (subscription) subscription.unsubscribe();
     };
   }, [supabaseClient]);
+
+  if (configError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erro de Configuração</h2>
+          <p className="text-gray-600 mb-6">{configError}</p>
+          <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded-xl text-left font-mono">
+            Verifique se as variáveis de ambiente SUPABASE_URL e SUPABASE_KEY estão configuradas no servidor.
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-6 w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (authLoading) {
     return (
