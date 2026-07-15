@@ -48,10 +48,33 @@ export function NotificationCenter({ supabase, user, dashboardData, onNavigate }
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasFetched, setHasFetched] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const notifiedKeysRef = useRef<Set<string>>(new Set());
+
+  const triggerBrowserNotification = (title: string, body: string, key?: string) => {
+    if (key) {
+      if (notifiedKeysRef.current.has(key)) return;
+      notifiedKeysRef.current.add(key);
+    }
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new window.Notification(title, {
+          body,
+          icon: '/icon.svg',
+        });
+      } catch (e) {
+        console.error('Error triggering browser notification:', e);
+      }
+    }
+  };
 
   useEffect(() => {
     if (user) {
       fetchNotifications();
+
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
       
       // Subscribe to changes
       const channel = supabase
@@ -66,6 +89,9 @@ export function NotificationCenter({ supabase, user, dashboardData, onNavigate }
           },
           (payload: any) => {
             fetchNotifications();
+            if (payload.eventType === 'INSERT' && payload.new) {
+              triggerBrowserNotification(payload.new.title, payload.new.message, payload.new.unique_key || payload.new.id);
+            }
           }
         )
         .subscribe();
@@ -116,6 +142,9 @@ export function NotificationCenter({ supabase, user, dashboardData, onNavigate }
       // Evita duplicatas verificando a mensagem exata localmente
       const exists = notifications.some(n => n.unique_key === uniqueKey);
       if (!exists) {
+        // Trigger browser notification instantly
+        triggerBrowserNotification(title, message, uniqueKey);
+
         // Tentative optimistic local state to avoid race condition of multiple inserts
         setNotifications(prev => [{
            id: Math.random().toString(), 
@@ -183,6 +212,27 @@ export function NotificationCenter({ supabase, user, dashboardData, onNavigate }
         }
       } catch (err) {
          console.error('Error checking fixed bills deadlines:', err);
+      }
+
+      // Marketing Payments
+      try {
+        const { data: marketingPaymentsData } = await supabase
+          .from('marketing_payments')
+          .select('id, due_date, status, client:marketing_clients(name)')
+          .eq('status', 'pendente')
+          .not('due_date', 'is', null)
+          .order('due_date', { ascending: true })
+          .limit(100);
+
+        if (marketingPaymentsData) {
+          for (const mp of marketingPaymentsData) {
+             if (mp.client && mp.client.name) {
+                await processDeadline(mp.client.name, 'Mensalidade Marketing', mp.due_date, 'marketing:marketing_payments');
+             }
+          }
+        }
+      } catch (err) {
+         console.error('Error checking marketing deadlines:', err);
       }
     };
 

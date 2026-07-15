@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useDialog } from './DialogContext';
 import { 
   Calendar as CalendarIcon, 
   Users, 
@@ -15,8 +16,9 @@ import {
   Instagram, 
   Facebook, 
   Youtube, 
-  Video, 
-  FileText, 
+  Video,
+  FileText,
+  MessageSquare,
   ChevronLeft, 
   ChevronRight, 
   Search, 
@@ -44,7 +46,7 @@ interface MarketingClient {
   phone: string;
   plan_name: string;
   plan_value: number;
-  status: 'ativo' | 'prospect' | 'inativo';
+  status: 'mensalista' | 'semanal' | 'anúncio' | 'encerrado' | 'ativo' | 'prospect' | 'inativo';
   publication_days?: string; // comma separated days, e.g. "Seg,Qua,Sexta"
 }
 
@@ -75,6 +77,7 @@ interface MarketingPost {
 }
 
 export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAuth }) => {
+  const { alert: dialogAlert, confirm: dialogConfirm } = useDialog();
   const [activeSubTab, setActiveSubTab] = useState<'calendar' | 'clients' | 'payments' | 'reports'>('calendar');
   const [marketingViewMode, setMarketingViewMode] = useState<'calendar' | 'kanban'>('calendar');
   
@@ -107,7 +110,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
     phone: '',
     plan_name: '',
     plan_value: '',
-    status: 'ativo' as 'ativo' | 'prospect' | 'inativo',
+    status: 'mensalista' as 'mensalista' | 'semanal' | 'anúncio' | 'encerrado' | 'ativo' | 'prospect' | 'inativo',
     publication_days: [] as string[]
   });
 
@@ -204,8 +207,8 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
 
         // Pre-select clients if available
         if (clientsData.length > 0) {
-          if (!reportClient) setReportClient(clientsData[0].id);
-          if (!monthlyReportClient) setMonthlyReportClient(clientsData[0].id);
+          if (!reportClient) setReportClient(clientsData[0].id.toString());
+          if (!monthlyReportClient) setMonthlyReportClient(clientsData[0].id.toString());
         }
       } else {
         setErrorInfo("Erro ao carregar dados de marketing. Se as tabelas ainda não foram criadas no Supabase, por favor execute o script SQL de migração.");
@@ -419,18 +422,19 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       if (res.ok) {
         setIsClientModalOpen(false);
         fetchData();
+        await dialogAlert('Cliente salvo com sucesso!', 'Sucesso');
       } else {
         const errData = await res.json();
-        alert(`Erro: ${errData.message || 'Falha ao salvar cliente.'}`);
+        await dialogAlert(`Erro: ${errData.message || 'Falha ao salvar cliente.'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar cliente no Supabase.');
+      await dialogAlert('Erro ao salvar cliente no Supabase.');
     }
   };
 
   const handleDeleteClient = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este cliente de marketing? Isso também excluirá seus pagamentos vinculados.')) return;
+    if (!(await dialogConfirm('Deseja realmente excluir este cliente de marketing? Isso também excluirá seus pagamentos vinculados.'))) return;
 
     try {
       const res = await fetchWithAuth(`/api/marketing/clients/${id}`, {
@@ -439,8 +443,9 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
 
       if (res.ok) {
         fetchData();
+        await dialogAlert('Cliente excluído com sucesso!', 'Sucesso');
       } else {
-        alert('Falha ao excluir cliente.');
+        await dialogAlert('Falha ao excluir cliente.');
       }
     } catch (err) {
       console.error(err);
@@ -528,6 +533,18 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
     }
   };
 
+  const sendWhatsAppReminder = (payment: MarketingPayment) => {
+    const name = payment.marketing_clients?.name || 'Cliente';
+    const phone = payment.marketing_clients?.phone || '';
+    if (!phone) {
+      alert("Este cliente não possui um número de telefone cadastrado.");
+      return;
+    }
+    const due = new Date(payment.due_date).toLocaleDateString('pt-BR');
+    const msg = encodeURIComponent(`Olá, ${name}! Passando para lembrar que sua mensalidade de marketing tem vencimento em ${due}. Qualquer dúvida, estamos à disposição!`);
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+  };
+
   const handleDeletePayment = async (id: string) => {
     if (!confirm('Deseja realmente excluir este lançamento de pagamento?')) return;
 
@@ -539,7 +556,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       if (res.ok) {
         fetchData();
       } else {
-        alert('Falha ao excluir pagamento.');
+        await dialogAlert('Falha ao excluir pagamento.');
       }
     } catch (err) {
       console.error(err);
@@ -606,12 +623,13 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       if (res.ok) {
         setIsPostModalOpen(false);
         fetchData();
+        await dialogAlert('Post salvo com sucesso!', 'Sucesso');
       } else {
-        alert('Falha ao salvar post.');
+        await dialogAlert('Falha ao salvar post.');
       }
     } catch (err) {
       console.error(err);
-      alert('Erro de conexão ao salvar post.');
+      await dialogAlert('Erro de conexão ao salvar post.');
     }
   };
 
@@ -627,7 +645,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       if (res.ok) {
         fetchData();
       } else {
-        alert('Erro ao atualizar status do post.');
+        await dialogAlert('Erro ao atualizar status do post.');
       }
     } catch (err) {
       console.error(err);
@@ -635,7 +653,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
   };
 
   const handleDeletePost = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este agendamento de post?')) return;
+    if (!(await dialogConfirm('Deseja realmente excluir este agendamento de post?'))) return;
 
     try {
       const res = await fetchWithAuth(`/api/marketing/posts/${id}`, {
@@ -644,8 +662,9 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
 
       if (res.ok) {
         fetchData();
+        await dialogAlert('Post excluído com sucesso!', 'Sucesso');
       } else {
-        alert('Falha ao excluir post.');
+        await dialogAlert('Falha ao excluir post.');
       }
     } catch (err) {
       console.error(err);
@@ -785,7 +804,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
 
   // Clients options inside Planner selector
   const selectedClientDetails = useMemo(() => {
-    return clients.find(c => c.id.toString() === reportClient);
+    return clients.find(c => c.id.toString() === reportClient?.toString());
   }, [clients, reportClient]);
 
   // Drafts available to be chosen inside report builder
@@ -897,6 +916,11 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       alert("Por favor, selecione um cliente.");
       return;
     }
+
+    const mondayDate = new Date(reportStartDate + 'T12:00:00');
+    const fridayDate = new Date(mondayDate.getTime());
+    fridayDate.setDate(mondayDate.getDate() + 4);
+    const formattedPeriod = `${mondayDate.toLocaleDateString('pt-BR')} a ${fridayDate.toLocaleDateString('pt-BR')} (Segunda a Sexta)`;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -1088,7 +1112,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
             </div>
             <div class="meta-item">
               <span class="meta-label">Semana de Referência</span>
-              <span class="meta-val">A partir de ${new Date(reportStartDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+              <span class="meta-val">${formattedPeriod}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Data de Geração</span>
@@ -1126,6 +1150,11 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       alert("Por favor, selecione um cliente.");
       return;
     }
+
+    const mondayDate = new Date(reportStartDate + 'T12:00:00');
+    const fridayDate = new Date(mondayDate.getTime());
+    fridayDate.setDate(mondayDate.getDate() + 4);
+    const formattedPeriod = `${mondayDate.toLocaleDateString('pt-BR')} a ${fridayDate.toLocaleDateString('pt-BR')} (Segunda a Sexta)`;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -1289,7 +1318,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
             </div>
             <div class="meta-item">
               <span class="meta-label">Período de Veiculação</span>
-              <span class="meta-val">A partir de ${new Date(reportStartDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+              <span class="meta-val">${formattedPeriod}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Data de Geração</span>
@@ -1639,9 +1668,19 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
 
     return posts.filter(post => {
       const postYMD = post.scheduled_date.split('T')[0];
-      return postYMD >= startYMD && postYMD <= endYMD;
+      const isWithinDateRange = postYMD >= startYMD && postYMD <= endYMD;
+      if (!isWithinDateRange) return false;
+
+      const client = clients.find(c => c.id.toString() === post.client_id?.toString());
+      if (client && client.publication_days) {
+        const days = client.publication_days.split(',');
+        const date = new Date(post.scheduled_date + 'T00:00:00');
+        const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][date.getDay()];
+        return days.includes(dayName);
+      }
+      return true;
     });
-  }, [posts, weeklyStatusReportStartDate]);
+  }, [posts, weeklyStatusReportStartDate, clients]);
 
   // Aggregate metrics for this chosen week
   const weeklyStatusMetrics = useMemo(() => {
@@ -1659,9 +1698,9 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
     return { total, drafts, scheduled, inProd, approved, published, uniqueClientsCount };
   }, [weeklyStatusReportPosts]);
 
-  const handlePrintWeeklyStatusReport = () => {
+  const handlePrintWeeklyStatusReport = async () => {
     if (weeklyStatusReportPosts.length === 0) {
-      alert("Nenhum post encontrado nesta semana para gerar o relatório.");
+      await dialogAlert("Nenhum post encontrado nesta semana para gerar o relatório.");
       return;
     }
 
@@ -2815,6 +2854,13 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
                           <td className="px-5 py-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
+                                onClick={() => sendWhatsAppReminder(payment)}
+                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                                title="Enviar lembrete via WhatsApp"
+                              >
+                                <MessageSquare size={14} />
+                              </button>
+                              <button
                                 onClick={() => handleOpenPaymentModal(payment)}
                                 className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-all"
                               >
@@ -2864,6 +2910,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
                       onChange={(e) => setReportClient(e.target.value)}
                       className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold"
                     >
+                      <option value="">Selecione um cliente</option>
                       {clients.map(c => (
                         <option key={c.id} value={c.id}>{c.name} ({c.company || 'Empresa'})</option>
                       ))}
@@ -3221,9 +3268,13 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
                     onChange={(e) => setClientForm(prev => ({ ...prev, status: e.target.value as any }))}
                     className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold"
                   >
-                    <option value="ativo">Ativo (Mensalista)</option>
-                    <option value="prospect">Lead / Prospect</option>
-                    <option value="inativo">Inativo / Finalizado</option>
+                    <option value="mensalista">Mensalista</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="anúncio">Anúncio</option>
+                    <option value="encerrado">Encerrado</option>
+                    <option value="ativo">Ativo</option>
+                    <option value="prospect">Prospect</option>
+                    <option value="inativo">Inativo</option>
                   </select>
                 </div>
               </div>

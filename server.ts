@@ -1241,7 +1241,7 @@ app.get("/api/config", (req, res) => {
   app.post("/api/marketing/clients", async (req, res) => {
     try {
       const user = (req as any).user;
-      const { name, company, phone, plan_name, plan_value, status } = req.body;
+      const { name, company, phone, plan_name, plan_value, status, publication_days } = req.body;
       const { data, error } = await supabase.from("marketing_clients").insert([{
         user_id: user.id,
         name,
@@ -1249,7 +1249,8 @@ app.get("/api/config", (req, res) => {
         phone,
         plan_name,
         plan_value: plan_value || 0,
-        status: status || 'ativo'
+        status: status || 'ativo',
+        publication_days: publication_days || ''
       }]).select().single();
       
       if (error) return res.status(500).json(error);
@@ -1262,9 +1263,9 @@ app.get("/api/config", (req, res) => {
   app.put("/api/marketing/clients/:id", async (req, res) => {
     try {
       const user = (req as any).user;
-      const { name, company, phone, plan_name, plan_value, status } = req.body;
+      const { name, company, phone, plan_name, plan_value, status, publication_days } = req.body;
       const { error } = await supabase.from("marketing_clients")
-        .update({ name, company, phone, plan_name, plan_value, status })
+        .update({ name, company, phone, plan_name, plan_value, status, publication_days })
         .eq("id", req.params.id)
         .eq("user_id", user.id);
       
@@ -1297,7 +1298,7 @@ app.get("/api/config", (req, res) => {
       const { data, error } = await supabase.from("marketing_payments")
         .select(`
           *,
-          marketing_clients (name, company)
+          marketing_clients (name, company, phone)
         `)
         .eq("user_id", user.id)
         .order('due_date', { ascending: true });
@@ -1483,9 +1484,23 @@ app.get("/api/config", (req, res) => {
   // --- Chácara Module Routes ---
   app.get("/api/chacara/users", async (req, res) => {
     const user = (req as any).user;
-    const { data, error } = await supabase.from("chacara_users").select("*").eq("user_id", user.id).order('name');
-    if (error) return res.status(500).json(error);
-    res.json(data || []);
+    
+    const { data: users, error: uError } = await supabase.from("chacara_users").select("*").eq("user_id", user.id).order('name');
+    if (uError) return res.status(500).json(uError);
+    
+    const { data: bills, error: bError } = await supabase.from("chacara_bills")
+        .select("*")
+        .eq("user_id", user.id)
+        .order('reading_date', { ascending: false });
+    
+    if (bError) return res.status(500).json(bError);
+    
+    const usersWithLastBill = (users || []).map(u => {
+        const lastBill = (bills || []).find(b => b.chacara_user_id === u.id);
+        return { ...u, last_bill: lastBill };
+    });
+    
+    res.json(usersWithLastBill);
   });
 
   app.post("/api/chacara/users", async (req, res) => {

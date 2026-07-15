@@ -43,6 +43,7 @@ import { cn } from '../lib/utils';
 import { PdfService } from '../lib/PdfService';
 import { useDialog } from './DialogContext';
 import { StrictFinanceDashboard, Lancamento } from './StrictFinanceDashboard';
+import { ChacaraOfflineLogger } from './ChacaraOfflineLogger';
 
 interface ChacaraManagerProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -2446,6 +2447,18 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
               )}
             </div>
 
+          </motion.div>
+        )}
+
+        {activeTab === 'chacara_offline' && (
+          <motion.div
+            key="offline"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
+            className="space-y-6"
+          >
+            <ChacaraOfflineLogger setActiveTab={setActiveTab} />
           </motion.div>
         )}
 

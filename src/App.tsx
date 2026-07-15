@@ -10,6 +10,20 @@ export default function App() {
   const [supabaseConfig, setSupabaseConfig] = useState<{ supabaseUrl: string, supabaseKey: string } | null>(null);
   const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -153,6 +167,11 @@ export default function App() {
 
   return (
     <>
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-[9999] font-medium shadow-md">
+          Você está offline
+        </div>
+      )}
       <MainApp onLogout={handleLogout} session={session} supabaseClient={supabaseClient} />
       {deferredPrompt && (
         <button 
