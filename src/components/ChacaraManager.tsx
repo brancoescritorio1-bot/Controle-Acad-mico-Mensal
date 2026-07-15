@@ -277,8 +277,6 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
   const [searchBill, setSearchBill] = useState('');
 
-  const [isAnalyzingBill, setIsAnalyzingBill] = useState(false);
-
   useEffect(() => {
     const preFill = localStorage.getItem('chacaraPreFill');
     if (preFill && activeTab === 'chacara_main') {
@@ -301,57 +299,6 @@ export const ChacaraManager: React.FC<ChacaraManagerProps> = ({ fetchWithAuth, a
         localStorage.removeItem('chacaraPreFill');
     }
   }, [users, settings, activeTab]);
-
-  const handleBillImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsAnalyzingBill(true);
-    try {
-      const reader = new FileReader();
-      const readerPromise = new Promise<string>((resolve) => {
-        reader.onloadend = () => resolve(reader.result as string);
-      });
-      reader.readAsDataURL(file);
-      const base64 = await readerPromise;
-
-      const res = await fetchWithAuth('/api/chacara/analyze-bill', {
-        method: 'POST',
-        body: JSON.stringify({ image: base64 })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        const foundUser = users.find(u => 
-          u.name.toLowerCase().includes(data.user_name?.toLowerCase()) || 
-          data.user_name?.toLowerCase().includes(u.name.toLowerCase())
-        );
-
-        if (foundUser) {
-           const preFilled = {
-              energy: data.bill_type === 'energy' ? data.readings : [],
-              water: data.bill_type === 'water' ? data.readings : []
-           };
-           handleUserSelectForBill(String(foundUser.id), preFilled);
-           if (data.reading_date) {
-              setBillForm(prev => ({ ...prev, reading_date: data.reading_date }));
-           }
-           dialogAlert(`Fatura de ${foundUser.name} identificada e preenchida!`);
-        } else {
-           dialogAlert(`Fatura identificada para "${data.user_name}", mas não encontrei esse usuário no sistema.`);
-        }
-      } else {
-        dialogAlert('Não foi possível identificar as informações na fatura.');
-      }
-    } catch (error) {
-      console.error('Error analyzing bill:', error);
-      dialogAlert('Erro ao analisar fatura.');
-    } finally {
-      setIsAnalyzingBill(false);
-      // Reset input
-      e.target.value = '';
-    }
-  };
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'partial'>('all');
   const [paymentDateModal, setPaymentDateModal] = useState<{isOpen: boolean, bill: ChacaraBill | null, date: string, amountPaid: number, paidCategories: Record<string, boolean>, isDivergent: boolean}>({isOpen: false, bill: null, date: '', amountPaid: 0, paidCategories: {}, isDivergent: false});
@@ -2231,42 +2178,10 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
             className="space-y-6"
           >
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <PlusCircle size={20} className="text-indigo-600" />
-                  {editingBill ? 'Editar Conta' : 'Lançar Nova Conta'}
-                </h3>
-                <div className="relative">
-                  <input 
-                    type="file"
-                    id="ai-bill-upload"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleBillImageUpload}
-                    disabled={isAnalyzingBill}
-                  />
-                  <label 
-                    htmlFor="ai-bill-upload"
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm cursor-pointer transition-all ${
-                      isAnalyzingBill 
-                        ? 'bg-gray-100 text-gray-400' 
-                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'
-                    }`}
-                  >
-                    {isAnalyzingBill ? (
-                      <span className="animate-pulse flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                        Analisando...
-                      </span>
-                    ) : (
-                      <>
-                        <Upload size={16} />
-                        Upload de Conta (IA)
-                      </>
-                    )}
-                  </label>
-                </div>
-              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <PlusCircle size={20} className="text-indigo-600" />
+                {editingBill ? 'Editar Conta' : 'Lançar Nova Conta'}
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Usuário</label>

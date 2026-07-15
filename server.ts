@@ -1,6 +1,5 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenAI } from "@google/genai";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -29,15 +28,6 @@ const supabase = createClient(supabaseUrl, serviceRoleKey || supabaseKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
-  }
-});
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
   }
 });
 
@@ -2390,44 +2380,6 @@ app.get("/api/config", (req, res) => {
       res.json({ success: true, updated_count: data ? data.length : 0 });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
-    }
-  });
-
-
-  app.post("/api/chacara/analyze-bill", async (req, res) => {
-    const { image } = req.body;
-    if (!image) return res.status(400).json({ error: "Image is required" });
-
-    try {
-      const prompt = `Analise esta fatura de utilidade (água ou energia) e extraia as seguintes informações em formato JSON:
-      {
-        "user_name": "string",
-        "reading_date": "YYYY-MM-DD",
-        "bill_type": "energy" | "water",
-        "readings": [
-          { "curr": number }
-        ]
-      }
-      Tente identificar o nome do usuário/cliente na fatura. 
-      Se houver múltiplos medidores ou leituras, inclua todos no array "readings".
-      Retorne APENAS o JSON.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: [
-          { inlineData: { mimeType: "image/jpeg", data: image.split(',')[1] || image } },
-          { text: prompt }
-        ],
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-
-      const data = JSON.parse(response.text || '{}');
-      res.json(data);
-    } catch (error: any) {
-      console.error("Error analyzing bill:", error);
-      res.status(500).json({ error: error.message });
     }
   });
 
