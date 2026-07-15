@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Trash2, Droplets, Zap, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
+export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => void, fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response> }> = ({ setActiveTab, fetchWithAuth }) => {
   const [logs, setLogs] = useState<any[]>([]);
   const [water, setWater] = useState('');
   const [energy, setEnergy] = useState('');
@@ -16,7 +16,7 @@ export const ChacaraOfflineLogger: React.FC<{ setActiveTab: (tab: string) => voi
     
     const fetchUsers = async () => {
         try {
-            const res = await fetch('/api/chacara/users');
+            const res = await fetchWithAuth('/api/chacara/users');
             if(res.ok) setUsers(await res.json());
         } catch(e) { console.error(e); }
     };

@@ -2458,7 +2458,7 @@ Verifiquei aqui que constam valores pendentes em seu nome acumulados.
             exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}
             className="space-y-6"
           >
-            <ChacaraOfflineLogger setActiveTab={setActiveTab} />
+            <ChacaraOfflineLogger setActiveTab={setActiveTab} fetchWithAuth={fetchWithAuth} />
           </motion.div>
         )}
 
