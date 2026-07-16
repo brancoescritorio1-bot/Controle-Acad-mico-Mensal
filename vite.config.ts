@@ -22,6 +22,23 @@ export default defineConfig(({mode}) => {
     },
     build: {
       chunkSizeWarningLimit: 3000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('jspdf')) {
+                return 'vendor-jspdf';
+              }
+              if (id.includes('xlsx') || id.includes('sheetjs')) {
+                return 'vendor-xlsx';
+              }
+              if (id.includes('recharts') || id.includes('d3')) {
+                return 'vendor-recharts';
+              }
+            }
+          },
+        },
+      },
     },
   };
 });
