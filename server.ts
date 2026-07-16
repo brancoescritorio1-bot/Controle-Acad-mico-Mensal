@@ -25,9 +25,26 @@ const ai = geminiApiKey ? new GoogleGenAI({
 // Also remove trailing slashes
 const supabaseUrlRaw = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gymxdeijrgorugqqiteh.supabase.co";
 const supabaseUrl = supabaseUrlRaw.split('/rest/v1/')[0].replace(/\/+$/, "");
-console.log("Supabase URL initialized as:", supabaseUrl);
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_secret_IsUaKY6lLQP6OSb8bEfKKw_XjzvVjp-";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+// Helper to mask secrets securely for diagnostic logs
+const maskSecretSecurely = (key: string | undefined): string => {
+  if (!key) return "UNDEFINED / EMPTY";
+  if (key.length <= 8) return `DEFINED (Length: ${key.length}, format too short to mask)`;
+  return `DEFINED (Length: ${key.length}, starts with: "${key.slice(0, 4)}...", ends with: "...${key.slice(-4)}")`;
+};
+
+console.log("=== VERCEL BUILD & RUNTIME DIAGNOSTICS (SUPABASE SETUP) ===");
+console.log(`[ENV] process.env.SUPABASE_URL: ${process.env.SUPABASE_URL ? "DEFINED" : "NOT DEFINED"}`);
+console.log(`[ENV] process.env.VITE_SUPABASE_URL: ${process.env.VITE_SUPABASE_URL ? "DEFINED" : "NOT DEFINED"}`);
+console.log(`[ENV] Final resolved supabaseUrl: ${supabaseUrl}`);
+console.log(`[ENV] process.env.SUPABASE_ANON_KEY: ${maskSecretSecurely(process.env.SUPABASE_ANON_KEY)}`);
+console.log(`[ENV] process.env.VITE_SUPABASE_ANON_KEY: ${maskSecretSecurely(process.env.VITE_SUPABASE_ANON_KEY)}`);
+console.log(`[ENV] process.env.SUPABASE_SERVICE_ROLE_KEY: ${maskSecretSecurely(process.env.SUPABASE_SERVICE_ROLE_KEY)}`);
+console.log(`[ENV] process.env.VITE_SUPABASE_SERVICE_ROLE_KEY: ${maskSecretSecurely(process.env.VITE_SUPABASE_SERVICE_ROLE_KEY)}`);
+console.log(`[INIT] Server Client using Service Role Key: ${!!serviceRoleKey ? "YES" : "NO (FALLBACK TO ANON KEY)"}`);
+console.log("==========================================================");
 
 // Use service role key for backend operations if available to bypass RLS
 const supabase = createClient(supabaseUrl, serviceRoleKey || supabaseKey, {

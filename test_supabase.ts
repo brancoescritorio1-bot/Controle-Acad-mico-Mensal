@@ -9,12 +9,19 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_S
 console.log("Checking Supabase at:", url);
 const supabase = createClient(url, key);
 
+const targetTables = [
+  "presencas", "notas_atividades", "conteudos_web", "safety_non_conformities",
+  "escalas", "email_templates", "fixed_bills", "fixed_bill_payments"
+];
+
 async function test() {
-  const { data, error } = await supabase.from('fixed_bills').select('id, name, user_id');
-  if (error) {
-    console.error("Error:", error);
-  } else {
-    console.log("Fixed bills with user_id:", data);
+  for (const table of targetTables) {
+    const { data, error } = await supabase.from(table).select('*').limit(1);
+    if (error) {
+      console.error(`❌ Table ${table} Error:`, error.message);
+    } else {
+      console.log(`✅ Table ${table} works! Column keys:`, Object.keys(data[0] || {}));
+    }
   }
 }
 test();

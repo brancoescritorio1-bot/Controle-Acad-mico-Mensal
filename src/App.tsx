@@ -18,6 +18,18 @@ export default function App() {
         if (!res.ok) throw new Error('Failed to fetch config');
         
         const config = await res.json();
+        
+        // Secure frontend diagnostics
+        const maskFrontSecret = (key: string | undefined): string => {
+          if (!key) return "UNDEFINED / EMPTY";
+          if (key.length <= 8) return `DEFINED (Length: ${key.length}, format too short to mask)`;
+          return `DEFINED (Length: ${key.length}, starts with: "${key.slice(0, 4)}...", ends with: "...${key.slice(-4)}")`;
+        };
+        console.log("=== CLIENT-SIDE CONFIGURATION DIAGNOSTICS ===");
+        console.log(`[CLIENT-CONFIG] Received URL: ${config.supabaseUrl}`);
+        console.log(`[CLIENT-CONFIG] Received Anon Key: ${maskFrontSecret(config.supabaseKey)}`);
+        console.log("=============================================");
+
         setSupabaseConfig(config);
         setSupabaseClient(createClient(config.supabaseUrl, config.supabaseKey));
       } catch (error) {
