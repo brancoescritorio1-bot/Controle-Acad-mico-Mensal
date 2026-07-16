@@ -3,11 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 let currentDir = process.cwd();
 // Removing import.meta.url to prevent Vercel ncc build errors
 
 dotenv.config();
+
+// Initialize Gemini client on the server
+const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+const ai = geminiApiKey ? new GoogleGenAI({
+  apiKey: geminiApiKey,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+}) : null;
 
 // Sanitize URL: remove /rest/v1/ suffix if the user accidentally pasted the REST endpoint instead of the project URL
 // Also remove trailing slashes
@@ -67,6 +79,12 @@ app.get("/api/config", (req, res) => {
       if (error || !user) {
         console.error("Auth error:", error?.message);
         return res.status(401).json({ error: "Invalid or expired token" });
+      }
+
+      // Map authorized admin/manager emails to share the primary data tenant
+      if (user.email === 'brancoescritorio1@gmail.com' || user.email === 'larapecanhag@outlook.com') {
+        console.log(`Mapping user ${user.email} (id: ${user.id}) to primary tenant id '814821bb-c4e7-47a6-bff2-7a0ab5f1c7d6'`);
+        user.id = '814821bb-c4e7-47a6-bff2-7a0ab5f1c7d6';
       }
 
       (req as any).user = user;
@@ -1429,6 +1447,47 @@ app.get("/api/config", (req, res) => {
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // AI-powered Caption Generation endpoint
+  app.post("/api/ai/generate-caption", async (req, res) => {
+    try {
+      if (!ai) {
+        return res.status(501).json({ error: "O serviço Gemini AI não está configurado ou a chave de API está ausente no servidor." });
+      }
+
+      const { title, social_network, context } = req.body;
+      if (!title) {
+        return res.status(400).json({ error: "Por favor, informe o título ou tema do post." });
+      }
+
+      console.log(`Generating AI caption with Gemini for post: "${title}" (${social_network})`);
+
+      const prompt = `Você é um especialista em marketing digital e redação publicitária (copywriting).
+Escreva uma legenda atraente, persuasiva e altamente profissional em português para uma postagem com o seguinte tema/título: "${title}".
+Rede Social de destino: ${social_network || 'Instagram'}.
+Contexto adicional ou público-alvo: ${context || 'Geral'}.
+
+Diretrizes da legenda:
+1. Comece com um gancho forte (headline) para prender a atenção de imediato.
+2. Divida o texto em parágrafos curtos para tornar a leitura escaneável e agradável.
+3. Inclua uma chamada para ação (CTA) marcante e apropriada no final (ex: "Deixe seu comentário", "Acesse o link da nossa bio", "Compartilhe com quem precisa saber disso").
+4. Adicione hashtags relevantes e estratégicas ao final da legenda.
+5. Use emojis de forma moderada e profissional para animar e humanizar a mensagem.
+
+Retorne APENAS o texto da legenda formatada, sem comentários extras, introduções do tipo "Aqui está a legenda" ou blocos de código formatados com crase.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+      });
+
+      const caption = response.text || '';
+      res.json({ caption: caption.trim() });
+    } catch (err: any) {
+      console.error("Error generating AI caption with Gemini:", err);
+      res.status(500).json({ error: err.message || "Erro ao gerar legenda com inteligência artificial." });
     }
   });
 

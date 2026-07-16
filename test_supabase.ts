@@ -10,11 +10,11 @@ console.log("Checking Supabase at:", url);
 const supabase = createClient(url, key);
 
 async function test() {
-  const { data, error } = await supabase.from('clients').select('id').limit(1);
+  const { data, error } = await supabase.from('fixed_bills').select('id, name, user_id');
   if (error) {
-    console.error("Connection failed:", error.message);
+    console.error("Error:", error);
   } else {
-    console.log("Connection successful!");
+    console.log("Fixed bills with user_id:", data);
   }
 }
 test();

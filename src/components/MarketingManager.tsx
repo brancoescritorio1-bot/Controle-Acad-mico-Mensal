@@ -32,7 +32,8 @@ import {
   Printer,
   Sparkles,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 
 interface MarketingManagerProps {
@@ -143,6 +144,7 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
   // Weekly Planner Report states
   const [reportClient, setReportClient] = useState<string>('');
   const [isSavingWeekly, setIsSavingWeekly] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [reportStartDate, setReportStartDate] = useState<string>(() => {
     const d = new Date();
     const day = d.getDay();
@@ -598,6 +600,49 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
       });
     }
     setIsPostModalOpen(true);
+  };
+
+  const handleGenerateAiCaption = async () => {
+    if (!postForm.title.trim()) {
+      dialogAlert({
+        title: 'Atenção',
+        message: 'Por favor, insira o título ou tema do post primeiro para que a Inteligência Artificial saiba sobre o que escrever.'
+      });
+      return;
+    }
+
+    setGeneratingAi(true);
+    try {
+      const res = await fetchWithAuth('/api/ai/generate-caption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: postForm.title,
+          social_network: postForm.social_network,
+          context: 'Post profissional para o cliente ' + (clients.find(c => c.id === postForm.client_id)?.name || 'Geral')
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Erro na requisição');
+      }
+
+      const data = await res.json();
+      setPostForm(prev => ({ ...prev, caption: data.caption }));
+      dialogAlert({
+        title: 'Legenda Gerada!',
+        message: 'A legenda foi gerada com sucesso pela IA do OrganizaAI e inserida no campo correspondente.'
+      });
+    } catch (err: any) {
+      console.error(err);
+      dialogAlert({
+        title: 'Erro',
+        message: err.message || 'Falha ao conectar ao serviço de inteligência artificial. Verifique se o servidor está ativo e com a chave configurada.'
+      });
+    } finally {
+      setGeneratingAi(false);
+    }
   };
 
   const handleSavePost = async (e: React.FormEvent) => {
@@ -3486,7 +3531,27 @@ export const MarketingManager: React.FC<MarketingManagerProps> = ({ fetchWithAut
               </div>
 
               <div>
-                <label className="block text-gray-600 font-extrabold uppercase text-[10px] tracking-wider mb-1">Legenda / Texto do Post</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-gray-600 font-extrabold uppercase text-[10px] tracking-wider">Legenda / Texto do Post</label>
+                  <button
+                    type="button"
+                    disabled={generatingAi}
+                    onClick={handleGenerateAiCaption}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-extrabold text-[9px] uppercase tracking-wider rounded-lg transition shadow-sm active:scale-95 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {generatingAi ? (
+                      <>
+                        <Loader2 className="animate-spin" size={10} />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={10} />
+                        Gerar com IA
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   rows={4}
                   value={postForm.caption}
