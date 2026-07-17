@@ -134,24 +134,51 @@ app.get("/api/config", (req, res) => {
         // Ignore parsing errors
       }
 
-      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      });
+      let users: any[] = [];
+      const useDirectFetch = !serviceRoleKey.startsWith("eyJ");
 
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+      if (useDirectFetch) {
+        console.log("[AUTH] Using direct HTTP fetch for prefix-based service role key...");
+        const authUrl = `${supabaseUrl}/auth/v1/admin/users`;
+        const fetchRes = await fetch(authUrl, {
+          method: "GET",
+          headers: {
+            "apikey": serviceRoleKey,
+            "Authorization": `Bearer ${serviceRoleKey}`
+          }
+        });
 
-      if (error) {
-        console.error("Error listing users:", error.message, error);
-        if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
-          return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+        if (!fetchRes.ok) {
+          const errMsg = await fetchRes.text().catch(() => "Unknown error");
+          console.error(`[AUTH] Direct fetch listUsers error: ${fetchRes.status} ${fetchRes.statusText}`, errMsg);
+          if (fetchRes.status === 401 || fetchRes.status === 403) {
+            return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+          }
+          return res.status(500).json({ error: `Supabase Auth API Error: ${fetchRes.statusText} (${errMsg})` });
         }
-        return res.status(500).json({ error: `Supabase Error: ${error.message}` });
+
+        const responseData = await fetchRes.json() as { users?: any[] };
+        users = responseData.users || [];
+      } else {
+        const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        });
+
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+
+        if (error) {
+          console.error("Error listing users:", error.message, error);
+          if (error.message.includes("User not allowed") || error.message.includes("not authorized")) {
+            return res.status(501).json({ error: "Service role key is invalid or lacks permissions." });
+          }
+          return res.status(500).json({ error: `Supabase Error: ${error.message}` });
+        }
+
+        users = data?.users || [];
       }
-
-      const users = data?.users || [];
 
       // Map to safe user object
       const safeUsers = users.map(u => ({
