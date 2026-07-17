@@ -50,7 +50,9 @@ import {
   AlertCircle,
   X,
   BrainCircuit,
-  Megaphone
+  Megaphone,
+  Key,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -2658,6 +2660,60 @@ Escalas GMNL ${year}`;
                     </div>
                   )}
                 </section>
+
+                {/* Section 4: Server Config Guide */}
+                <section className="mt-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield className="text-indigo-600" size={20} />
+                    <h2 className="text-lg font-bold text-gray-800">4. Configuração de Variáveis do Servidor</h2>
+                  </div>
+                  <Card>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-start gap-3">
+                        <Key className="text-indigo-600 shrink-0 mt-0.5" size={18} />
+                        <div>
+                          <h3 className="font-bold text-indigo-900 text-sm mb-1">
+                            SUPABASE_SERVICE_ROLE_KEY
+                          </h3>
+                          <p className="text-xs text-indigo-700 leading-relaxed">
+                            Esta variável de ambiente é necessária no backend para realizar operações administrativas seguras que exigem privilégios elevados (como listar os usuários cadastrados da instância Supabase). Sem ela, a visualização da aba "Usuários" retornará o erro 500.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Guia de Configuração Segura</h4>
+                        
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4 text-xs text-gray-600">
+                          <div>
+                            <span className="font-bold text-indigo-600 block mb-1">Passo 1: Obter a Chave de Serviço no Supabase</span>
+                            <p className="leading-relaxed">Acesse o painel do seu projeto no <strong className="text-gray-800">Supabase</strong> &gt; Vá em <strong className="text-gray-800">Project Settings</strong> (ícone de engrenagem) &gt; <strong className="text-gray-800">API</strong> &gt; Copie o valor da chave secreta rotulada como <strong className="text-gray-800">service_role</strong> (bypasses Row Level Security). <strong>Atenção:</strong> esta chave é extremamente confidencial e nunca deve ser compartilhada ou exposta no código frontend!</p>
+                          </div>
+                          
+                          <div className="border-t border-gray-200/60 pt-4">
+                            <span className="font-bold text-indigo-600 block mb-1">Passo 2: Adicionar à Plataforma de Produção (Vercel)</span>
+                            <ul className="list-disc list-inside space-y-2 pl-1 leading-relaxed">
+                              <li>Abra o painel do seu projeto no site da <strong className="text-gray-800">Vercel</strong>.</li>
+                              <li>Navegue até a aba <strong className="text-gray-800">Settings</strong> (Configurações) &gt; <strong className="text-gray-800">Environment Variables</strong> (Variáveis de Ambiente).</li>
+                              <li>Adicione uma nova variável de ambiente com o nome exato: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-xs font-semibold text-gray-800">SUPABASE_SERVICE_ROLE_KEY</code></li>
+                              <li>Cole no campo de valor a chave <strong className="font-semibold text-gray-800">service_role</strong> copiada no Passo 1.</li>
+                              <li>Clique em <strong className="text-gray-800">Save</strong> para registrar.</li>
+                              <li><strong>Importante:</strong> Após salvar a nova variável, faça um novo Deploy (<strong className="text-gray-800">Redeploy</strong>) no painel da Vercel para que as funções do servidor carreguem a nova configuração.</li>
+                            </ul>
+                          </div>
+
+                          <div className="border-t border-gray-200/60 pt-4">
+                            <span className="font-bold text-indigo-600 block mb-1">Passo 3: Adicionar ao Ambiente de Desenvolvimento Local</span>
+                            <p className="leading-relaxed">Se estiver rodando o projeto em sua máquina localmente, edite ou crie o arquivo <code className="bg-gray-100 px-1 py-0.5 rounded font-mono text-xs font-semibold text-gray-800">.env</code> na raiz do projeto e declare a variável:</p>
+                            <pre className="mt-2 bg-gray-950 text-indigo-200 p-3 rounded-xl font-mono text-[11px] overflow-x-auto shadow-inner">
+                              {"SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_aqui"}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </section>
               </div>
             </motion.div>
           )}
@@ -2665,11 +2721,49 @@ Escalas GMNL ${year}`;
             <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.15, ease: "easeOut" }}>
               <Card title="Usuários Cadastrados" icon={Shield}>
                 {usersError ? (
-                  <div className="text-center py-8 text-red-500">
-                    <AlertCircle className="mx-auto h-8 w-8 mb-2" />
-                    <p className="font-semibold">Erro ao carregar usuários</p>
-                    <p className="text-sm mt-1">{usersError}</p>
-                    <p className="text-xs mt-2 text-gray-500">Verifique a variável SUPABASE_SERVICE_ROLE_KEY no servidor.</p>
+                  <div className="space-y-6">
+                    <div className="text-center py-6 text-red-500 bg-red-50/50 rounded-2xl border border-red-100 p-4">
+                      <AlertCircle className="mx-auto h-8 w-8 mb-2" />
+                      <p className="font-semibold">Erro ao carregar usuários</p>
+                      <p className="text-sm mt-1">{usersError}</p>
+                      <p className="text-xs mt-3 text-gray-500 max-w-md mx-auto leading-relaxed">
+                        O backend necessita da variável de ambiente <code className="bg-red-50 px-1 py-0.5 rounded font-mono font-semibold text-red-600">SUPABASE_SERVICE_ROLE_KEY</code> para listar os usuários do Supabase de forma segura.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                      <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                        <Key className="text-indigo-600" size={16} />
+                        Como corrigir este erro passo a passo:
+                      </h3>
+                      
+                      <div className="space-y-3 text-xs text-gray-600 leading-relaxed">
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-100">
+                          <span className="font-bold text-indigo-600 block mb-1">1. Obtenha a chave correta no Supabase</span>
+                          <p>Acesse o painel do seu projeto no <strong>Supabase</strong> &gt; <strong>Project Settings</strong> (ícone de engrenagem) &gt; <strong>API</strong> &gt; Copie o valor da chave <strong>service_role</strong> (ela possui o rótulo "secret").</p>
+                          <p className="mt-1.5 text-amber-600 font-medium">Atenção: NÃO use a chave "anon" (public). Somente a chave "service_role" possui permissão para gerenciar e listar usuários.</p>
+                        </div>
+                        
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-100">
+                          <span className="font-bold text-indigo-600 block mb-1">2. Configure na Vercel (Produção)</span>
+                          <ul className="list-disc list-inside space-y-1 pl-1">
+                            <li>Vá no painel da <strong>Vercel</strong> e abra a página do seu projeto.</li>
+                            <li>Acesse a aba <strong>Settings</strong> &gt; <strong>Environment Variables</strong>.</li>
+                            <li>Adicione uma nova variável chamada <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono font-semibold text-gray-800">SUPABASE_SERVICE_ROLE_KEY</code></li>
+                            <li>Cole a chave de serviço que você copiou do Supabase.</li>
+                            <li><strong>Crucial:</strong> Após salvar a variável, você precisa fazer um novo Deploy (Redeploy) no painel da Vercel para que as alterações entrem em vigor.</li>
+                          </ul>
+                        </div>
+
+                        <div className="bg-white p-3.5 rounded-xl border border-gray-100">
+                          <span className="font-bold text-indigo-600 block mb-1">3. Configuração Local (Desenvolvimento)</span>
+                          <p>Caso esteja executando o projeto localmente em seu computador, crie/edite o arquivo <code className="bg-gray-100 px-1 py-0.5 rounded font-mono font-semibold text-gray-800">.env</code> na raiz do projeto e insira a linha:</p>
+                          <pre className="mt-1.5 bg-gray-950 text-indigo-200 p-2.5 rounded-lg font-mono text-[10px] overflow-x-auto">
+                            {"SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_aqui"}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ) : usersList.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
